@@ -120,242 +120,128 @@ function updateCameraPosition() {
 
 let labelRenderer;
 
+// Variables for animation between blocks
+let starObjects = [];
+let constellationLines = [];
+let blockData = {};
+let currentBlockIndex = 0;
+let targetBlockIndex = 0;
+let transitionProgress = 1.0; // Start at 1.0 to immediately show first block
+let transitionSpeed = 0.02; // Speed of transition between blocks
+let isTransitioning = false;
+let blockNumbers = [];
+
+// Add UI for block navigation
+const blockNavUI = document.createElement('div');
+blockNavUI.style.position = 'absolute';
+blockNavUI.style.bottom = '40px';
+blockNavUI.style.width = '100%';
+blockNavUI.style.textAlign = 'center';
+blockNavUI.style.color = 'white';
+blockNavUI.style.fontFamily = 'Arial, sans-serif';
+blockNavUI.style.zIndex = '20';
+document.body.appendChild(blockNavUI);
+
+// Set up animation controls
+const animationControlsUI = document.createElement('div');
+animationControlsUI.style.position = 'absolute';
+animationControlsUI.style.bottom = '70px';
+animationControlsUI.style.width = '100%';
+animationControlsUI.style.textAlign = 'center';
+animationControlsUI.style.zIndex = '20';
+document.body.appendChild(animationControlsUI);
+
+// Add play/pause button
+const playPauseBtn = document.createElement('button');
+playPauseBtn.textContent = 'Play Animation';
+playPauseBtn.style.padding = '5px 10px';
+playPauseBtn.style.margin = '0 5px';
+playPauseBtn.style.backgroundColor = '#555';
+playPauseBtn.style.color = 'white';
+playPauseBtn.style.border = 'none';
+playPauseBtn.style.borderRadius = '3px';
+playPauseBtn.style.cursor = 'pointer';
+animationControlsUI.appendChild(playPauseBtn);
+
+let isAutoPlaying = false;
+const autoplaySpeed = 2000; // milliseconds between block transitions
+let autoplayTimer = null;
+
+// Toggle autoplay on button click
+playPauseBtn.addEventListener('click', () => {
+    isAutoPlaying = !isAutoPlaying;
+    playPauseBtn.textContent = isAutoPlaying ? 'Pause Animation' : 'Play Animation';
+    
+    if (isAutoPlaying) {
+        autoplayTimer = setInterval(() => {
+            if (!isTransitioning) {
+                targetBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
+                isTransitioning = true;
+                transitionProgress = 0;
+                updateBlockNavUI();
+            }
+        }, autoplaySpeed);
+    } else {
+        clearInterval(autoplayTimer);
+    }
+});
+
+// Function to update block navigation UI
+function updateBlockNavUI() {
+    blockNavUI.innerHTML = '';
+    blockNumbers.forEach((blockNumber, index) => {
+        const blockBtn = document.createElement('button');
+        blockBtn.textContent = `Block ${blockNumber}`;
+        blockBtn.style.padding = '5px 10px';
+        blockBtn.style.margin = '0 5px';
+        blockBtn.style.backgroundColor = index === targetBlockIndex ? '#fff' : '#555';
+        blockBtn.style.color = index === targetBlockIndex ? '#000' : '#fff';
+        blockBtn.style.border = 'none';
+        blockBtn.style.borderRadius = '3px';
+        blockBtn.style.cursor = 'pointer';
+        
+        blockBtn.addEventListener('click', () => {
+            if (targetBlockIndex !== index && !isTransitioning) {
+                targetBlockIndex = index;
+                transitionProgress = 0;
+                isTransitioning = true;
+                updateBlockNavUI();
+            }
+        });
+        
+        blockNavUI.appendChild(blockBtn);
+    });
+}
+
 // Fetch data from API and create stars
-fetch('https://api.sentichain.com/mapper/get_points_by_block_no_embedding?block_number=20&api_key=abc123')
+fetch('https://api.sentichain.com/mapper/get_points_by_block_range_no_embedding?start_block=5&end_block=7&api_key=abc123')
     .then(response => response.json())
     .then(data => {
         const points = data.points;
-        const stars = [];
-
-        // Create stars at each position and place them on a sphere
+        
+        // Organize points by block number
         points.forEach(point => {
-            const x = point[3]; // 4th item is x
-            const y = point[4]; // 5th item is y
-            const clusterGroup = point[5]; // 6th item is cluster group
-
-            // Convert the 2D coordinates to 3D spherical coordinates
-            // Adjust mapping to place most stars in front of the camera (positive Z)
-            // Map x to longitude but center around 0 (front) instead of wrapping fully
-            // Map y to latitude but limit range for better visibility
-            const longitude = x * Math.PI - Math.PI / 2; // Shift to center stars in front
-            const latitude = y * Math.PI / 3; // Reduce vertical spread
-
-            // Convert spherical coordinates to Cartesian (x,y,z)
-            const starX = sphereRadius * Math.cos(latitude) * Math.sin(longitude);
-            const starY = sphereRadius * Math.sin(latitude);
-            const starZ = sphereRadius * Math.cos(latitude) * Math.cos(longitude);
-
-            const star = new THREE.Mesh(starGeometry, new THREE.MeshBasicMaterial({
-                color: 0xFFFFFF,
-                emissive: 0x888888,
-                emissiveIntensity: 1
-            }));
-
-            // Position stars on the inside of a sphere
-            star.position.set(starX, starY, starZ);
-            star.userData.clusterGroup = clusterGroup; // Store cluster group in user data
-            star.userData.title = point[8]; // Store title for later use in cluster labels
-            scene.add(star);
-            stars.push(star);
+            const blockNumber = point[0]; // 1st item is block number
+            if (!blockData[blockNumber]) {
+                blockData[blockNumber] = [];
+                blockNumbers.push(blockNumber);
+            }
+            blockData[blockNumber].push(point);
         });
-
-        // Connect stars within the same cluster group
-        const clusterGroups = {};
-
-        // Initialize cluster groups
-        stars.forEach(star => {
-            const group = star.userData.clusterGroup;
-            if (!clusterGroups[group]) {
-                clusterGroups[group] = [];
-            }
-            clusterGroups[group].push(star);
-        });
-
-        // Connect stars within the same cluster group and add cluster labels
-        Object.keys(clusterGroups).forEach(groupId => {
-            const groupStars = clusterGroups[groupId];
-
-            // Use different colors for different cluster groups
-            const hue = (parseInt(groupId) * 50) % 360;
-            const color = new THREE.Color(`hsl(${hue}, 100%, 70%)`);
-
-            // Add a label for the cluster group
-            // Get the title from the first star in the group
-            const clusterTitle = groupStars[0].userData.title;
-
-            if (groupStars.length <= 1) {
-                // If only one star in the group, add label outside the star
-                const starPosition = groupStars[0].position;
-
-                // Create a label object
-                const div = document.createElement('div');
-                div.className = 'label';
-                div.textContent = clusterTitle;
-                div.style.color = 'white';
-                div.style.fontSize = '1.0em';
-                div.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                div.style.padding = '3px 6px';
-                div.style.borderRadius = '3px';
-                div.style.maxWidth = '150px';
-                div.style.wordWrap = 'break-word';
-                div.style.textAlign = 'center';
-
-                // Calculate position outside the sphere
-                const labelOffset = 1.5; // Position labels 100% outside the sphere
-                const labelPosition = starPosition.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
-                
-                const label = new THREE.CSS2DObject(div);
-                label.position.copy(labelPosition);
-
-                // Create a line from the star to the label
-                const linePoints = [starPosition, labelPosition];
-                const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
-                const lineMaterial = new THREE.LineBasicMaterial({ 
-                    color: 0xCCCCCC, 
-                    opacity: 0.4,
-                    transparent: true
-                });
-                const labelLine = new THREE.Line(lineGeometry, lineMaterial);
-                
-                // Store references for animation updates
-                labelLine.userData.startPoint = starPosition;
-                labelLine.userData.endPoint = labelPosition;
-                labelLine.userData.isLabelLine = true;
-
-                // Add label and line to scene
-                scene.add(label);
-                scene.add(labelLine);
-            } else {
-                // Calculate center of mass for the cluster
-                const centerOfMass = new THREE.Vector3();
-                groupStars.forEach(star => {
-                    centerOfMass.add(star.position);
-                });
-                centerOfMass.divideScalar(groupStars.length);
-
-                // Create a label object
-                const div = document.createElement('div');
-                div.className = 'label';
-                div.textContent = clusterTitle;
-                div.style.color = 'white';
-                div.style.fontSize = '1.0em';
-                div.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                div.style.padding = '3px 6px';
-                div.style.borderRadius = '3px';
-                div.style.maxWidth = '150px';
-                div.style.wordWrap = 'break-word';
-                div.style.textAlign = 'center';
-
-                // Calculate position outside the sphere
-                const labelOffset = 1.5; // Position labels 100% outside the sphere
-                const labelPosition = centerOfMass.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
-                
-                const label = new THREE.CSS2DObject(div);
-                label.position.copy(labelPosition);
-
-                // Create a line from the center of mass to the label
-                const linePoints = [centerOfMass, labelPosition];
-                const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
-                const lineMaterial = new THREE.LineBasicMaterial({ 
-                    color: 0xCCCCCC, 
-                    opacity: 0.4,
-                    transparent: true
-                });
-                const labelLine = new THREE.Line(lineGeometry, lineMaterial);
-                
-                // Store references for animation updates
-                labelLine.userData.startPoint = centerOfMass;
-                labelLine.userData.endPoint = labelPosition;
-                labelLine.userData.isLabelLine = true;
-
-                // Add label and line to scene
-                scene.add(label);
-                scene.add(labelLine);
-            }
-
-            // Skip creating connections if there's only 1 star in the group
-            if (groupStars.length <= 1) return;
-
-            // Create a constellation-like pattern using a simple minimum spanning tree algorithm
-            // First, calculate all possible edges and their distances
-            const edges = [];
-            for (let i = 0; i < groupStars.length; i++) {
-                for (let j = i + 1; j < groupStars.length; j++) {
-                    const distance = groupStars[i].position.distanceTo(groupStars[j].position);
-                    edges.push({
-                        from: i,
-                        to: j,
-                        distance: distance
-                    });
-                }
-            }
-
-            // Sort edges by distance (shortest first)
-            edges.sort((a, b) => a.distance - b.distance);
-
-            // Create a disjoint-set data structure for Kruskal's algorithm
-            const parent = {};
-            for (let i = 0; i < groupStars.length; i++) {
-                parent[i] = i;
-            }
-
-            // Find function for disjoint-set
-            const find = (i) => {
-                if (parent[i] !== i) {
-                    parent[i] = find(parent[i]);
-                }
-                return parent[i];
-            };
-
-            // Union function for disjoint-set
-            const union = (i, j) => {
-                parent[find(i)] = find(j);
-            };
-
-            // Apply Kruskal's algorithm to find minimum spanning tree
-            const mstEdges = [];
-            for (const edge of edges) {
-                const fromRoot = find(edge.from);
-                const toRoot = find(edge.to);
-
-                // If including this edge doesn't create a cycle
-                if (fromRoot !== toRoot) {
-                    mstEdges.push(edge);
-                    union(edge.from, edge.to);
-
-                    // If we've added enough edges to form a spanning tree, stop
-                    if (mstEdges.length === groupStars.length - 1) {
-                        break;
-                    }
-                }
-            }
-
-            // Create the constellation lines using the minimum spanning tree
-            for (const edge of mstEdges) {
-                const fromStar = groupStars[edge.from];
-                const toStar = groupStars[edge.to];
-
-                // Create a line between the two stars
-                const constellationLineGeo = new THREE.BufferGeometry().setFromPoints([
-                    fromStar.position,
-                    toStar.position
-                ]);
-                const constellationLineMat = new THREE.LineBasicMaterial({
-                    color: color,
-                    opacity: 0.7,
-                    transparent: true
-                });
-                const constellationLine = new THREE.Line(constellationLineGeo, constellationLineMat);
-                scene.add(constellationLine);
-
-                // Store references to connected stars for updating lines during zoom
-                constellationLine.userData = {
-                    fromStar: fromStar,
-                    toStar: toStar
-                };
-            }
-        });
-
+        
+        // Sort block numbers for sequential animation
+        blockNumbers.sort((a, b) => a - b);
+        
+        // Initialize with the first block
+        currentBlockIndex = 0;
+        targetBlockIndex = 0;
+        
+        // Create initial stars and constellations
+        createStarsForBlock(blockNumbers[currentBlockIndex]);
+        
+        // Update UI for block navigation
+        updateBlockNavUI();
+        
         // Add CSS2D renderer for labels
         labelRenderer = new THREE.CSS2DRenderer();
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -364,50 +250,365 @@ fetch('https://api.sentichain.com/mapper/get_points_by_block_no_embedding?block_
         labelRenderer.domElement.style.pointerEvents = 'none';
         document.body.appendChild(labelRenderer.domElement);
 
-        // Update animation loop to include label renderer
-        animate = function () {
-            requestAnimationFrame(animate);
-
-            // Smooth rotation transition with telescope-like dampening
-            currentRotationX += (targetRotationX - currentRotationX) * 0.03;
-            currentRotationY += (targetRotationY - currentRotationY) * 0.03;
-
-            // Update camera position based on rotation
-            updateCameraPosition();
-
-            // Update constellation lines
-            scene.traverse(object => {
-                if (object instanceof THREE.Line) {
-                    if (object.userData.fromStar) {
-                        const lineGeo = new THREE.BufferGeometry().setFromPoints([
-                            object.userData.fromStar.position,
-                            object.userData.toStar.position
-                        ]);
-                        object.geometry.dispose();
-                        object.geometry = lineGeo;
-                    } else if (object.userData.isLabelLine) {
-                        const lineGeo = new THREE.BufferGeometry().setFromPoints([
-                            object.userData.startPoint,
-                            object.userData.endPoint
-                        ]);
-                        object.geometry.dispose();
-                        object.geometry = lineGeo;
-                    }
-                }
-            });
-
-            renderer.render(scene, camera);
-            labelRenderer.render(scene, camera);
-        };
-
+        // Start animation
         animate();
     })
     .catch(error => {
         console.error('Error fetching data:', error);
-
         // Fallback to original 3 stars if fetch fails
         createFallbackStars();
     });
+
+// Function to create stars and constellations for a specific block
+function createStarsForBlock(blockNumber) {
+    // Clear existing star objects and lines
+    starObjects.forEach(star => scene.remove(star));
+    constellationLines.forEach(line => scene.remove(line));
+    
+    // Also remove any existing labels
+    scene.traverse(object => {
+        if (object instanceof THREE.CSS2DObject) {
+            scene.remove(object);
+        }
+    });
+    
+    starObjects = [];
+    constellationLines = [];
+    
+    if (!blockData[blockNumber]) return;
+    
+    const points = blockData[blockNumber];
+    const stars = [];
+
+    // Create stars at each position and place them on a sphere
+    points.forEach(point => {
+        const x = point[3]; // 4th item is x
+        const y = point[4]; // 5th item is y
+        const clusterGroup = point[5]; // 6th item is cluster group
+
+        // Convert the 2D coordinates to 3D spherical coordinates
+        // Adjust mapping to place most stars in front of the camera (positive Z)
+        // Map x to longitude but center around 0 (front) instead of wrapping fully
+        // Map y to latitude but limit range for better visibility
+        const longitude = x * Math.PI - Math.PI / 2; // Shift to center stars in front
+        const latitude = y * Math.PI / 3; // Reduce vertical spread
+
+        // Convert spherical coordinates to Cartesian (x,y,z)
+        const starX = sphereRadius * Math.cos(latitude) * Math.sin(longitude);
+        const starY = sphereRadius * Math.sin(latitude);
+        const starZ = sphereRadius * Math.cos(latitude) * Math.cos(longitude);
+
+        const star = new THREE.Mesh(starGeometry, new THREE.MeshBasicMaterial({
+            color: 0xFFFFFF,
+            emissive: 0x888888,
+            emissiveIntensity: 1
+        }));
+
+        // Position stars on the inside of a sphere
+        star.position.set(starX, starY, starZ);
+        star.userData.clusterGroup = clusterGroup; // Store cluster group in user data
+        star.userData.title = point[8]; // Store title for later use in cluster labels
+        scene.add(star);
+        stars.push(star);
+        starObjects.push(star);
+    });
+
+    // Connect stars within the same cluster group
+    const clusterGroups = {};
+
+    // Initialize cluster groups
+    stars.forEach(star => {
+        const group = star.userData.clusterGroup;
+        if (!clusterGroups[group]) {
+            clusterGroups[group] = [];
+        }
+        clusterGroups[group].push(star);
+    });
+
+    // Connect stars within the same cluster group and add cluster labels
+    Object.keys(clusterGroups).forEach(groupId => {
+        const groupStars = clusterGroups[groupId];
+
+        // Use different colors for different cluster groups
+        const hue = (parseInt(groupId) * 50) % 360;
+        const color = new THREE.Color(`hsl(${hue}, 100%, 70%)`);
+
+        // Add a label for the cluster group
+        // Get the title from the first star in the group
+        const clusterTitle = groupStars[0].userData.title;
+
+        if (groupStars.length <= 1) {
+            // If only one star in the group, add label outside the star
+            const starPosition = groupStars[0].position;
+
+            // Create a label object
+            const div = document.createElement('div');
+            div.className = 'label';
+            div.textContent = clusterTitle;
+            div.style.color = 'white';
+            div.style.fontSize = '1.0em';
+            div.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            div.style.padding = '3px 6px';
+            div.style.borderRadius = '3px';
+            div.style.maxWidth = '150px';
+            div.style.wordWrap = 'break-word';
+            div.style.textAlign = 'center';
+
+            // Calculate position outside the sphere
+            const labelOffset = 1.5; // Position labels 100% outside the sphere
+            const labelPosition = starPosition.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
+            
+            const label = new THREE.CSS2DObject(div);
+            label.position.copy(labelPosition);
+
+            // Create a line from the star to the label
+            const linePoints = [starPosition, labelPosition];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0xCCCCCC, 
+                opacity: 0.4,
+                transparent: true
+            });
+            const labelLine = new THREE.Line(lineGeometry, lineMaterial);
+            
+            // Store references for animation updates
+            labelLine.userData.startPoint = starPosition;
+            labelLine.userData.endPoint = labelPosition;
+            labelLine.userData.isLabelLine = true;
+
+            // Add label and line to scene
+            scene.add(label);
+            scene.add(labelLine);
+            constellationLines.push(labelLine);
+        } else {
+            // Calculate center of mass for the cluster
+            const centerOfMass = new THREE.Vector3();
+            groupStars.forEach(star => {
+                centerOfMass.add(star.position);
+            });
+            centerOfMass.divideScalar(groupStars.length);
+
+            // Create a label object
+            const div = document.createElement('div');
+            div.className = 'label';
+            div.textContent = clusterTitle;
+            div.style.color = 'white';
+            div.style.fontSize = '1.0em';
+            div.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            div.style.padding = '3px 6px';
+            div.style.borderRadius = '3px';
+            div.style.maxWidth = '150px';
+            div.style.wordWrap = 'break-word';
+            div.style.textAlign = 'center';
+
+            // Calculate position outside the sphere
+            const labelOffset = 1.5; // Position labels 100% outside the sphere
+            const labelPosition = centerOfMass.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
+            
+            const label = new THREE.CSS2DObject(div);
+            label.position.copy(labelPosition);
+
+            // Create a line from the center of mass to the label
+            const linePoints = [centerOfMass, labelPosition];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+            const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: 0xCCCCCC, 
+                opacity: 0.4,
+                transparent: true
+            });
+            const labelLine = new THREE.Line(lineGeometry, lineMaterial);
+            
+            // Store references for animation updates
+            labelLine.userData.startPoint = centerOfMass;
+            labelLine.userData.endPoint = labelPosition;
+            labelLine.userData.isLabelLine = true;
+
+            // Add label and line to scene
+            scene.add(label);
+            scene.add(labelLine);
+            constellationLines.push(labelLine);
+        }
+
+        // Skip creating connections if there's only 1 star in the group
+        if (groupStars.length <= 1) return;
+
+        // Create a constellation-like pattern using a simple minimum spanning tree algorithm
+        // First, calculate all possible edges and their distances
+        const edges = [];
+        for (let i = 0; i < groupStars.length; i++) {
+            for (let j = i + 1; j < groupStars.length; j++) {
+                const distance = groupStars[i].position.distanceTo(groupStars[j].position);
+                edges.push({
+                    from: i,
+                    to: j,
+                    distance: distance
+                });
+            }
+        }
+
+        // Sort edges by distance (shortest first)
+        edges.sort((a, b) => a.distance - b.distance);
+
+        // Create a disjoint-set data structure for Kruskal's algorithm
+        const parent = {};
+        for (let i = 0; i < groupStars.length; i++) {
+            parent[i] = i;
+        }
+
+        // Find function for disjoint-set
+        const find = (i) => {
+            if (parent[i] !== i) {
+                parent[i] = find(parent[i]);
+            }
+            return parent[i];
+        };
+
+        // Union function for disjoint-set
+        const union = (i, j) => {
+            parent[find(i)] = find(j);
+        };
+
+        // Apply Kruskal's algorithm to find minimum spanning tree
+        const mstEdges = [];
+        for (const edge of edges) {
+            const fromRoot = find(edge.from);
+            const toRoot = find(edge.to);
+
+            // If including this edge doesn't create a cycle
+            if (fromRoot !== toRoot) {
+                mstEdges.push(edge);
+                union(edge.from, edge.to);
+
+                // If we've added enough edges to form a spanning tree, stop
+                if (mstEdges.length === groupStars.length - 1) {
+                    break;
+                }
+            }
+        }
+
+        // Create the constellation lines using the minimum spanning tree
+        for (const edge of mstEdges) {
+            const fromStar = groupStars[edge.from];
+            const toStar = groupStars[edge.to];
+
+            // Create a line between the two stars
+            const constellationLineGeo = new THREE.BufferGeometry().setFromPoints([
+                fromStar.position,
+                toStar.position
+            ]);
+            const constellationLineMat = new THREE.LineBasicMaterial({
+                color: color,
+                opacity: 0.7,
+                transparent: true
+            });
+            const constellationLine = new THREE.Line(constellationLineGeo, constellationLineMat);
+            scene.add(constellationLine);
+            constellationLines.push(constellationLine);
+
+            // Store references to connected stars for updating lines during zoom
+            constellationLine.userData = {
+                fromStar: fromStar,
+                toStar: toStar
+            };
+        }
+    });
+}
+
+// Function to transition between blocks
+function updateStarPositions() {
+    if (!isTransitioning) return;
+    
+    // Update transition progress
+    transitionProgress += transitionSpeed;
+    
+    if (transitionProgress >= 1.0) {
+        // Transition complete
+        transitionProgress = 1.0;
+        isTransitioning = false;
+        currentBlockIndex = targetBlockIndex;
+        
+        // Update with final positions
+        createStarsForBlock(blockNumbers[currentBlockIndex]);
+    } else {
+        // During transition - remove all items and create interpolated positions
+        scene.traverse(object => {
+            if (object instanceof THREE.CSS2DObject) {
+                scene.remove(object);
+            }
+        });
+        
+        constellationLines.forEach(line => scene.remove(line));
+        constellationLines = [];
+        
+        // Keep existing stars but update their positions
+        const currentBlock = blockData[blockNumbers[currentBlockIndex]];
+        const targetBlock = blockData[blockNumbers[targetBlockIndex]];
+        
+        if (!currentBlock || !targetBlock) return;
+        
+        // Map stars by cluster group for easier matching
+        const currentStarsByCluster = {};
+        const targetStarsByCluster = {};
+        
+        currentBlock.forEach(point => {
+            const clusterGroup = point[5];
+            if (!currentStarsByCluster[clusterGroup]) {
+                currentStarsByCluster[clusterGroup] = [];
+            }
+            currentStarsByCluster[clusterGroup].push(point);
+        });
+        
+        targetBlock.forEach(point => {
+            const clusterGroup = point[5];
+            if (!targetStarsByCluster[clusterGroup]) {
+                targetStarsByCluster[clusterGroup] = [];
+            }
+            targetStarsByCluster[clusterGroup].push(point);
+        });
+        
+        // For each star object, find the corresponding position in target block
+        starObjects.forEach((star, index) => {
+            const clusterGroup = star.userData.clusterGroup;
+            
+            // Get corresponding points from current and target blocks
+            const currentPoints = currentStarsByCluster[clusterGroup];
+            const targetPoints = targetStarsByCluster[clusterGroup];
+            
+            if (!currentPoints || !targetPoints) return;
+            
+            // Match the star with corresponding point in current block
+            let matchIndex = Math.min(index % currentPoints.length, currentPoints.length - 1);
+            let currentPoint = currentPoints[matchIndex];
+            
+            // Find corresponding point in target block
+            let targetMatchIndex = Math.min(matchIndex, targetPoints.length - 1);
+            let targetPoint = targetPoints[targetMatchIndex];
+            
+            // Get current coordinates
+            const currentX = currentPoint[3];
+            const currentY = currentPoint[4];
+            
+            // Get target coordinates
+            const targetX = targetPoint[3];
+            const targetY = targetPoint[4];
+            
+            // Interpolate between coordinates
+            const interpX = currentX + (targetX - currentX) * transitionProgress;
+            const interpY = currentY + (targetY - currentY) * transitionProgress;
+            
+            // Convert interpolated coordinates to 3D position
+            const longitude = interpX * Math.PI - Math.PI / 2;
+            const latitude = interpY * Math.PI / 3;
+            
+            // Update star position
+            const newX = sphereRadius * Math.cos(latitude) * Math.sin(longitude);
+            const newY = sphereRadius * Math.sin(latitude);
+            const newZ = sphereRadius * Math.cos(latitude) * Math.cos(longitude);
+            
+            star.position.set(newX, newY, newZ);
+        });
+    }
+}
 
 function createFallbackStars() {
     // Create three stars (fallback if API fails)
@@ -468,7 +669,7 @@ function createFallbackStars() {
     animate();
 }
 
-// Animation loop (will be redefined when data is loaded)
+// Animation loop
 function animate() {
     requestAnimationFrame(animate);
 
@@ -478,6 +679,38 @@ function animate() {
 
     // Update camera position based on rotation
     updateCameraPosition();
+    
+    // Update star positions for block transition
+    updateStarPositions();
+
+    // Update constellation lines
+    scene.traverse(object => {
+        if (object instanceof THREE.Line) {
+            if (object.userData.fromStar && object.userData.toStar) {
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                    object.userData.fromStar.position,
+                    object.userData.toStar.position
+                ]);
+                object.geometry.dispose();
+                object.geometry = lineGeo;
+            } else if (object.userData.isLabelLine && object.userData.startPoint && object.userData.endPoint) {
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                    object.userData.startPoint,
+                    object.userData.endPoint
+                ]);
+                object.geometry.dispose();
+                object.geometry = lineGeo;
+            } else if (object.userData.stars) {
+                const points = object.userData.stars.map(star => star.position);
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+                object.geometry.dispose();
+                object.geometry = lineGeo;
+            }
+        }
+    });
 
     renderer.render(scene, camera);
+    if (labelRenderer) {
+        labelRenderer.render(scene, camera);
+    }
 }
