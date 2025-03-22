@@ -194,6 +194,15 @@ toggleButton.style.boxShadow = '0 0 5px rgba(255, 255, 255, 0.5)';
 toggleButton.style.transition = 'background-color 0.3s';
 sliderContainer.appendChild(toggleButton);
 
+// Create speed indicator element
+const speedIndicator = document.createElement('div');
+speedIndicator.style.marginLeft = '10px';
+speedIndicator.style.color = '#fff';
+speedIndicator.style.fontSize = '14px';
+speedIndicator.style.fontFamily = 'Arial, sans-serif';
+speedIndicator.textContent = 'x5.0'; // Will be updated when speed is known
+sliderContainer.appendChild(speedIndicator);
+
 // Create block number label
 const blockLabel = document.createElement('div');
 blockLabel.style.position = 'absolute';
@@ -210,7 +219,9 @@ blockLabel.textContent = 'Block 0';
 document.body.appendChild(blockLabel);
 
 let isAutoPlaying = true;
-const autoplaySpeed = 2000; // milliseconds between block transitions
+const fastAutoplaySpeed = 200; // 0.2 seconds for first 75% of blocks
+const normalAutoplaySpeed = 2000; // 2 seconds for last 25% and after first playthrough
+let currentAutoplaySpeed = fastAutoplaySpeed; // Start with fast speed
 let autoplayTimer = null;
 
 // Update the slider when blockNumbers are loaded
@@ -258,6 +269,92 @@ function updateBlockNavUI() {
 // Update toggle button appearance
 function updateToggleButton() {
     toggleButton.style.backgroundColor = isAutoPlaying ? '#4CAF50' : '#FF5252'; // Green for play, red for pause
+    
+    // Update speed indicator text
+    const speedMultiplier = Math.round(1000 / currentAutoplaySpeed);
+    speedIndicator.textContent = `x${speedMultiplier}`;
+}
+
+// Function to determine the correct autoplay speed based on current position
+function getAutoplaySpeed() {
+    // If not first playthrough or user clicked toggle, always use normal speed
+    if (!isFirstPlaythrough) {
+        return normalAutoplaySpeed;
+    }
+    
+    // Calculate the threshold for switching to normal speed (75% of blocks)
+    const speedChangeThreshold = Math.floor(blockNumbers.length * 0.75);
+    
+    // Use fast speed for first 90% of blocks, normal speed for last 25%
+    return (targetBlockIndex < speedChangeThreshold) ? fastAutoplaySpeed : normalAutoplaySpeed;
+}
+
+// Update speed indicator immediately when initialized
+function updateSpeedIndicator() {
+    const speedMultiplier = Math.round(1000 / currentAutoplaySpeed);
+    speedIndicator.textContent = `x${speedMultiplier}`;
+}
+
+// Start autoplay timer immediately since isAutoPlaying is true
+function startAutoplayTimer() {
+    clearInterval(autoplayTimer); // Clear any existing timer
+    
+    // Get the appropriate speed
+    currentAutoplaySpeed = getAutoplaySpeed();
+    
+    // Update speed indicator
+    updateSpeedIndicator();
+    
+    autoplayTimer = setInterval(() => {
+        if (!isTransitioning) {
+            // Check if we're at the last block and this is the first playthrough
+            const nextBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
+            
+            // If we're at the last block and this is the first playthrough, stop
+            if (nextBlockIndex === 0 && isFirstPlaythrough) {
+                isAutoPlaying = false;
+                updateToggleButton();
+                clearInterval(autoplayTimer);
+                return;
+            }
+            
+            // Find next valid block index
+            let validNextIndex = nextBlockIndex;
+            let attempts = 0;
+            const maxAttempts = blockNumbers.length;
+            
+            // Keep trying different blocks until we find one with data or exhaust all options
+            while (attempts < maxAttempts) {
+                const nextBlockNumber = blockNumbers[validNextIndex];
+                if (blockData[nextBlockNumber] && blockData[nextBlockNumber].length > 0) {
+                    break; // Found a valid block
+                }
+                validNextIndex = (validNextIndex + 1) % blockNumbers.length;
+                attempts++;
+            }
+            
+            if (attempts >= maxAttempts) {
+                console.error('No valid blocks found for transition');
+                return;
+            }
+            
+            targetBlockIndex = validNextIndex;
+            slider.value = targetBlockIndex;
+            isTransitioning = true;
+            transitionProgress = 0;
+            updateBlockLabel();
+            
+            // After moving to the next block, check if we need to adjust the speed
+            const newSpeed = getAutoplaySpeed();
+            if (newSpeed !== currentAutoplaySpeed) {
+                currentAutoplaySpeed = newSpeed;
+                // Update speed indicator
+                updateSpeedIndicator();
+                // Restart the timer with the new speed
+                startAutoplayTimer();
+            }
+        }
+    }, currentAutoplaySpeed);
 }
 
 // Add event listener for toggle button
@@ -267,35 +364,9 @@ toggleButton.addEventListener('click', () => {
     isFirstPlaythrough = false; // User has clicked the toggle, so disable first playthrough behavior
 
     if (isAutoPlaying) {
-        autoplayTimer = setInterval(() => {
-            if (!isTransitioning) {
-                // Find next valid block index
-                let nextBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
-                let attempts = 0;
-                const maxAttempts = blockNumbers.length;
-                
-                // Keep trying different blocks until we find one with data or exhaust all options
-                while (attempts < maxAttempts) {
-                    const nextBlockNumber = blockNumbers[nextBlockIndex];
-                    if (blockData[nextBlockNumber] && blockData[nextBlockNumber].length > 0) {
-                        break; // Found a valid block
-                    }
-                    nextBlockIndex = (nextBlockIndex + 1) % blockNumbers.length;
-                    attempts++;
-                }
-                
-                if (attempts >= maxAttempts) {
-                    console.error('No valid blocks found for transition');
-                    return;
-                }
-                
-                targetBlockIndex = nextBlockIndex;
-                slider.value = targetBlockIndex;
-                isTransitioning = true;
-                transitionProgress = 0;
-                updateBlockLabel();
-            }
-        }, autoplaySpeed);
+        currentAutoplaySpeed = normalAutoplaySpeed; // Always use normal speed after user interaction
+        updateSpeedIndicator(); // Update speed indicator when speed changes
+        startAutoplayTimer();
     } else {
         clearInterval(autoplayTimer);
     }
@@ -341,48 +412,12 @@ fetch('https://api.sentichain.com/mapper/get_max_block_number')
 
         // Initialize toggle button state
         updateToggleButton();
+        
+        // Initialize speed indicator
+        updateSpeedIndicator();
 
         // Start autoplay timer immediately since isAutoPlaying is true
-        autoplayTimer = setInterval(() => {
-            if (!isTransitioning) {
-                // Check if we're at the last block and this is the first playthrough
-                const nextBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
-                
-                // If we're at the last block and this is the first playthrough, stop
-                if (nextBlockIndex === 0 && isFirstPlaythrough) {
-                    isAutoPlaying = false;
-                    updateToggleButton();
-                    clearInterval(autoplayTimer);
-                    return;
-                }
-                
-                // Find next valid block index
-                let validNextIndex = nextBlockIndex;
-                let attempts = 0;
-                const maxAttempts = blockNumbers.length;
-                
-                // Keep trying different blocks until we find one with data or exhaust all options
-                while (attempts < maxAttempts) {
-                    const nextBlockNumber = blockNumbers[validNextIndex];
-                    if (blockData[nextBlockNumber] && blockData[nextBlockNumber].length > 0) {
-                        break; // Found a valid block
-                    }
-                    validNextIndex = (validNextIndex + 1) % blockNumbers.length;
-                    attempts++;
-                }
-                
-                if (attempts >= maxAttempts) {
-                    console.error('No valid blocks found for transition');
-                    return;
-                }
-                
-                targetBlockIndex = validNextIndex;
-                slider.value = targetBlockIndex;
-                isTransitioning = true;
-                transitionProgress = 0;
-                updateBlockLabel();
-            }
-        }, autoplaySpeed);
+        startAutoplayTimer();
 
         // Add CSS2D renderer for labels
         labelRenderer = new THREE.CSS2DRenderer();
