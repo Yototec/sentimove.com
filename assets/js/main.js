@@ -204,7 +204,7 @@ speedIndicator.textContent = 'x5.0'; // Will be updated when speed is known
 sliderContainer.appendChild(speedIndicator);
 
 // Create block number label
-const blockLabel = document.createElement('div');
+const blockLabel = document.createElement('a');
 blockLabel.style.position = 'absolute';
 blockLabel.style.top = '20px';
 blockLabel.style.right = '30px';
@@ -212,10 +212,14 @@ blockLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
 blockLabel.style.padding = '5px 12px';
 blockLabel.style.borderRadius = '4px';
 blockLabel.style.fontSize = '14px';
-blockLabel.style.color = '#fff';
+blockLabel.style.color = '#00FFC8';
 blockLabel.style.zIndex = '20';
 blockLabel.style.fontFamily = 'Arial, sans-serif';
-blockLabel.textContent = 'Block 0';
+blockLabel.style.textDecoration = 'none';
+blockLabel.style.cursor = 'pointer';
+blockLabel.textContent = 'Block 0↗';
+blockLabel.href = 'https://sentichain.com/app?tab=BlockExplorer#';
+blockLabel.target = '_blank'; // Open in new tab
 document.body.appendChild(blockLabel);
 
 // Create timestamp label
@@ -289,7 +293,8 @@ function updateSlider() {
 function updateBlockLabel() {
     if (blockNumbers.length > 0) {
         const blockNumber = blockNumbers[slider.value];
-        blockLabel.textContent = `Block ${blockNumber}`;
+        blockLabel.textContent = `Block ${blockNumber}↗`;
+        blockLabel.href = `https://sentichain.com/app?tab=BlockExplorer#`;
         
         // Also update timestamp when block changes
         updateTimestamp(blockNumber);
