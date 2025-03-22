@@ -151,7 +151,46 @@ animationControlsUI.style.textAlign = 'center';
 animationControlsUI.style.zIndex = '20';
 document.body.appendChild(animationControlsUI);
 
-// Add play/pause button
+// Create a slider container
+const sliderContainer = document.createElement('div');
+sliderContainer.style.width = '80%';
+sliderContainer.style.margin = '0 auto';
+sliderContainer.style.position = 'relative';
+sliderContainer.style.padding = '0 10px';
+blockNavUI.appendChild(sliderContainer);
+
+// Create a slider input
+const slider = document.createElement('input');
+slider.type = 'range';
+slider.min = '0';
+slider.max = '100';
+slider.value = '0';
+slider.step = '1';
+slider.style.width = '50%';
+slider.style.height = '5px';
+slider.style.backgroundColor = '#555';
+slider.style.outline = 'none';
+slider.style.borderRadius = '5px';
+slider.style.appearance = 'none';
+slider.style.webkitAppearance = 'none';
+slider.style.cursor = 'pointer';
+sliderContainer.appendChild(slider);
+
+// Create block number label
+const blockLabel = document.createElement('div');
+blockLabel.style.position = 'absolute';
+blockLabel.style.top = '-25px';
+blockLabel.style.left = '50%';
+blockLabel.style.transform = 'translateX(-50%)';
+blockLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+blockLabel.style.padding = '2px 8px';
+blockLabel.style.borderRadius = '3px';
+blockLabel.style.fontSize = '12px';
+blockLabel.style.color = '#fff';
+blockLabel.textContent = 'Block 0';
+sliderContainer.appendChild(blockLabel);
+
+// Create playback button
 const playPauseBtn = document.createElement('button');
 playPauseBtn.textContent = 'Play Animation';
 playPauseBtn.style.padding = '5px 10px';
@@ -161,11 +200,47 @@ playPauseBtn.style.color = 'white';
 playPauseBtn.style.border = 'none';
 playPauseBtn.style.borderRadius = '3px';
 playPauseBtn.style.cursor = 'pointer';
+playPauseBtn.style.display = 'none'; // Hide the button, as we're using just the slider
 animationControlsUI.appendChild(playPauseBtn);
 
 let isAutoPlaying = false;
 const autoplaySpeed = 2000; // milliseconds between block transitions
 let autoplayTimer = null;
+
+// Update the slider when blockNumbers are loaded
+function updateSlider() {
+    if (blockNumbers.length > 0) {
+        slider.max = blockNumbers.length - 1;
+        slider.value = targetBlockIndex;
+        updateBlockLabel();
+    }
+}
+
+// Update the block label based on the current slider value
+function updateBlockLabel() {
+    if (blockNumbers.length > 0) {
+        const blockNumber = blockNumbers[slider.value];
+        blockLabel.textContent = `Block ${blockNumber}`;
+    }
+}
+
+// Add event listeners for the slider
+slider.addEventListener('input', function() {
+    if (!isTransitioning) {
+        const newIndex = parseInt(this.value);
+        if (targetBlockIndex !== newIndex) {
+            targetBlockIndex = newIndex;
+            transitionProgress = 0;
+            isTransitioning = true;
+            updateBlockLabel();
+        }
+    }
+});
+
+// Function to update block navigation UI - now just updates the slider
+function updateBlockNavUI() {
+    updateSlider();
+}
 
 // Toggle autoplay on button click
 playPauseBtn.addEventListener('click', () => {
@@ -176,42 +251,16 @@ playPauseBtn.addEventListener('click', () => {
         autoplayTimer = setInterval(() => {
             if (!isTransitioning) {
                 targetBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
+                slider.value = targetBlockIndex;
                 isTransitioning = true;
                 transitionProgress = 0;
-                updateBlockNavUI();
+                updateBlockLabel();
             }
         }, autoplaySpeed);
     } else {
         clearInterval(autoplayTimer);
     }
 });
-
-// Function to update block navigation UI
-function updateBlockNavUI() {
-    blockNavUI.innerHTML = '';
-    blockNumbers.forEach((blockNumber, index) => {
-        const blockBtn = document.createElement('button');
-        blockBtn.textContent = `Block ${blockNumber}`;
-        blockBtn.style.padding = '5px 10px';
-        blockBtn.style.margin = '0 5px';
-        blockBtn.style.backgroundColor = index === targetBlockIndex ? '#fff' : '#555';
-        blockBtn.style.color = index === targetBlockIndex ? '#000' : '#fff';
-        blockBtn.style.border = 'none';
-        blockBtn.style.borderRadius = '3px';
-        blockBtn.style.cursor = 'pointer';
-        
-        blockBtn.addEventListener('click', () => {
-            if (targetBlockIndex !== index && !isTransitioning) {
-                targetBlockIndex = index;
-                transitionProgress = 0;
-                isTransitioning = true;
-                updateBlockNavUI();
-            }
-        });
-        
-        blockNavUI.appendChild(blockBtn);
-    });
-}
 
 // Fetch data from API and create stars
 fetch('https://api.sentichain.com/mapper/get_points_by_block_range_no_embedding?start_block=5&end_block=7&api_key=abc123')
@@ -239,8 +288,8 @@ fetch('https://api.sentichain.com/mapper/get_points_by_block_range_no_embedding?
         // Create initial stars and constellations
         createStarsForBlock(blockNumbers[currentBlockIndex]);
         
-        // Update UI for block navigation
-        updateBlockNavUI();
+        // Update slider for block navigation
+        updateSlider();
         
         // Add CSS2D renderer for labels
         labelRenderer = new THREE.CSS2DRenderer();
