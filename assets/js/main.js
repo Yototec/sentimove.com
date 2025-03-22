@@ -218,8 +218,60 @@ blockLabel.style.fontFamily = 'Arial, sans-serif';
 blockLabel.textContent = 'Block 0';
 document.body.appendChild(blockLabel);
 
+// Create timestamp label
+const timestampLabel = document.createElement('div');
+timestampLabel.style.position = 'absolute';
+timestampLabel.style.top = '50px'; // Position below the block label
+timestampLabel.style.right = '30px';
+timestampLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+timestampLabel.style.padding = '5px 12px';
+timestampLabel.style.borderRadius = '4px';
+timestampLabel.style.fontSize = '14px';
+timestampLabel.style.color = '#fff';
+timestampLabel.style.zIndex = '20';
+timestampLabel.style.fontFamily = 'Arial, sans-serif';
+timestampLabel.textContent = '--';
+document.body.appendChild(timestampLabel);
+
+// Cache for block timestamps
+const timestampCache = {};
+
+// Function to fetch and update timestamp
+async function updateTimestamp(blockNumber) {
+    // Check cache first
+    if (timestampCache[blockNumber]) {
+        timestampLabel.textContent = `${timestampCache[blockNumber]}`;
+        return;
+    }
+    
+    // Show loading state
+    timestampLabel.textContent = '...';
+    
+    try {
+        const response = await fetch(`https://api.sentichain.com/blockchain/get_timestamp_from_block_number?network=mainnet&block_number=${blockNumber}`);
+        const data = await response.json();
+        
+        if (data && data.timestamp) {
+            // Convert UTC to local time
+            const utcDate = new Date(data.timestamp);
+            const localTimeString = utcDate.toLocaleString();
+            
+            // Cache the result
+            timestampCache[blockNumber] = localTimeString;
+            
+            // Update the label
+            timestampLabel.textContent = `${localTimeString}`;
+        } else {
+            timestampLabel.textContent = 'N/A';
+        }
+    } catch (error) {
+        console.error('Error fetching timestamp:', error);
+        timestampLabel.textContent = 'N/A';
+    }
+}
+
 let isAutoPlaying = true;
-const fastAutoplaySpeed = 200; // 0.2 seconds for first 75% of blocks
+const fastAutoplaySpeed = 400; // 0.4 seconds for first 75% of blocks
 const normalAutoplaySpeed = 2000; // 2 seconds for last 25% and after first playthrough
 let currentAutoplaySpeed = fastAutoplaySpeed; // Start with fast speed
 let autoplayTimer = null;
@@ -238,6 +290,9 @@ function updateBlockLabel() {
     if (blockNumbers.length > 0) {
         const blockNumber = blockNumbers[slider.value];
         blockLabel.textContent = `Block ${blockNumber}`;
+        
+        // Also update timestamp when block changes
+        updateTimestamp(blockNumber);
     }
 }
 
@@ -387,7 +442,7 @@ fetch('https://api.sentichain.com/mapper/get_max_block_number')
     .then(response => response.json())
     .then(data => {
         const maxBlockNumber = data.max_block_number;
-        const startBlock = maxBlockNumber - 20;
+        const startBlock = maxBlockNumber - 10;
         const endBlock = maxBlockNumber;
 
         // Now fetch the points using the calculated blocks
