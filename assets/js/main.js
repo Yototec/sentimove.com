@@ -195,16 +195,17 @@ sliderContainer.appendChild(toggleButton);
 // Create block number label
 const blockLabel = document.createElement('div');
 blockLabel.style.position = 'absolute';
-blockLabel.style.top = '-25px';
-blockLabel.style.left = '50%';
-blockLabel.style.transform = 'translateX(-50%)';
+blockLabel.style.top = '20px';
+blockLabel.style.right = '30px';
 blockLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-blockLabel.style.padding = '2px 8px';
-blockLabel.style.borderRadius = '3px';
-blockLabel.style.fontSize = '12px';
+blockLabel.style.padding = '5px 12px';
+blockLabel.style.borderRadius = '4px';
+blockLabel.style.fontSize = '14px';
 blockLabel.style.color = '#fff';
+blockLabel.style.zIndex = '20';
+blockLabel.style.fontFamily = 'Arial, sans-serif';
 blockLabel.textContent = 'Block 0';
-sliderContainer.appendChild(blockLabel);
+document.body.appendChild(blockLabel);
 
 // Create playback button
 const playPauseBtn = document.createElement('button');
@@ -284,7 +285,16 @@ toggleButton.addEventListener('click', () => {
 });
 
 // Fetch data from API and create stars
-fetch('https://api.sentichain.com/mapper/get_points_by_block_range_no_embedding?start_block=5&end_block=7&api_key=abc123')
+fetch('https://api.sentichain.com/mapper/get_max_block_number')
+    .then(response => response.json())
+    .then(data => {
+        const maxBlockNumber = data.max_block_number;
+        const startBlock = maxBlockNumber - 20;
+        const endBlock = maxBlockNumber;
+        
+        // Now fetch the points using the calculated blocks
+        return fetch(`https://api.sentichain.com/mapper/get_points_by_block_range_no_embedding?start_block=${startBlock}&end_block=${endBlock}&api_key=abc123`);
+    })
     .then(response => response.json())
     .then(data => {
         const points = data.points;
