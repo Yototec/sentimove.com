@@ -966,12 +966,21 @@ function createStarsForBlock(blockNumber) {
         text.style.fontSize = '14px'; // Increase font size
         text.style.fontWeight = '500'; // Make slightly bolder
         text.style.overflow = 'hidden';
-        text.style.textOverflow = 'ellipsis';
-        text.style.whiteSpace = 'nowrap';
-        text.textContent = clusterTitles[groupId];
         text.style.flexGrow = '1'; // Allow text to take remaining space
-        text.style.flexShrink = '1'; // Allow text to shrink if needed
-        text.style.minWidth = '0'; // Allow shrinking below content size
+
+        // Use different text wrapping properties based on view
+        if (isMobileView) {
+            // Allow text to wrap on mobile
+            text.style.whiteSpace = 'normal';
+            text.style.wordBreak = 'break-word';
+            text.style.lineHeight = '1.3';
+        } else {
+            // Keep as ellipsis on desktop
+            text.style.textOverflow = 'ellipsis';
+            text.style.whiteSpace = 'nowrap';
+        }
+
+        text.textContent = clusterTitles[groupId];
         
         // Add to container
         labelContainer.appendChild(bullet);
@@ -1405,8 +1414,21 @@ function createEmergencyFallbackStars() {
             text.style.overflow = 'hidden';
             text.style.textOverflow = 'ellipsis';
             text.style.whiteSpace = 'nowrap';
-            text.textContent = emergencyClusterNames[index];
             text.style.flexGrow = '1'; // Allow text to take remaining space
+            
+            // Use different text wrapping properties based on view
+            if (isMobileView) {
+                // Allow text to wrap on mobile
+                text.style.whiteSpace = 'normal';
+                text.style.wordBreak = 'break-word';
+                text.style.lineHeight = '1.3';
+            } else {
+                // Keep as ellipsis on desktop
+                text.style.textOverflow = 'ellipsis';
+                text.style.whiteSpace = 'nowrap';
+            }
+            
+            text.textContent = emergencyClusterNames[index];
             
             // Add to container
             labelContainer.appendChild(bullet);
@@ -1458,6 +1480,18 @@ function updateClusterLabelsPosition() {
     // Adjust position and height for mobile
     clusterLabelsContainer.style.bottom = isMobileView ? '110px' : '100px';
     clusterLabelsContainer.style.maxHeight = isMobileView ? '100px' : '80px'; // Give more room on mobile
+    
+    // For mobile view: set width to 80% and center it
+    if (isMobileView) {
+        clusterLabelsContainer.style.width = '80%';
+        clusterLabelsContainer.style.left = '5%'; // 5% on each side centers it
+        clusterLabelsContainer.style.right = 'auto'; // No need to set right when left and width are specified
+        clusterLabelsContainer.style.borderRadius = '8px'; // Add rounded corners for better mobile appearance
+    } else {
+        clusterLabelsContainer.style.width = '100%';
+        clusterLabelsContainer.style.left = '0';
+        clusterLabelsContainer.style.right = 'auto';
+    }
 }
 
 // Initialize labels position based on current view
