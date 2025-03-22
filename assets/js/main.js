@@ -71,15 +71,53 @@ let currentRotationY = targetRotationY;
 let lastTouchX = 0;
 let lastTouchY = 0;
 let isTouching = false;
+let isMouseDragging = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
 
-// Handle mouse movement for desktop
+// Handle mouse drag for desktop (replacing mouse movement)
+document.addEventListener('mousedown', (event) => {
+    isMouseDragging = true;
+    lastMouseX = event.clientX;
+    lastMouseY = event.clientY;
+    document.body.style.cursor = 'grabbing'; // Change cursor to indicate dragging
+});
+
 document.addEventListener('mousemove', (event) => {
-    mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-    mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    if (isMouseDragging) {
+        // Calculate mouse delta
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
+        const deltaX = mouseX - lastMouseX;
+        const deltaY = mouseY - lastMouseY;
+        
+        // Update last mouse position
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
+        
+        // Adjust rotation based on mouse movement with similar sensitivity to touch
+        targetRotationY -= deltaX * 0.01;
+        targetRotationX -= deltaY * 0.01;
+    }
+});
 
-    // Map mouse position to rotation, with reduced sensitivity for telescope-like precision
-    targetRotationY = mouseX * Math.PI * 0.3;
-    targetRotationX = mouseY * Math.PI * 0.2;
+document.addEventListener('mouseup', () => {
+    isMouseDragging = false;
+    document.body.style.cursor = 'grab'; // Change cursor back to indicate grabbable
+});
+
+document.addEventListener('mouseleave', () => {
+    if (isMouseDragging) {
+        isMouseDragging = false;
+        document.body.style.cursor = 'grab'; // Ensure cursor reverts if mouse leaves window
+    }
+});
+
+// Initialize cursor style
+document.addEventListener('DOMContentLoaded', () => {
+    if (!isMobileView) {
+        document.body.style.cursor = 'grab'; // Set initial cursor style for desktop
+    }
 });
 
 // Handle touch events for mobile
