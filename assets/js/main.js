@@ -312,6 +312,41 @@ clusterLabelsContainer.style.overflowY = 'auto'; // Enable vertical scrolling
 clusterLabelsContainer.style.overflowX = 'hidden'; // Prevent horizontal scrolling
 clusterLabelsContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
 clusterLabelsContainer.style.backdropFilter = 'blur(2px)';
+
+// Add custom scrollbar styling for mobile
+function updateScrollbarStyle() {
+    if (isMobileView) {
+        // Custom scrollbar for mobile
+        clusterLabelsContainer.style.scrollbarWidth = 'thin'; // For Firefox
+        clusterLabelsContainer.style.scrollbarColor = '#00FFC8 rgba(0,0,0,0.3)'; // For Firefox
+        
+        // Add WebKit scrollbar styling via stylesheet
+        let scrollbarStyle = document.getElementById('mobile-scrollbar-style');
+        
+        if (!scrollbarStyle) {
+            scrollbarStyle = document.createElement('style');
+            scrollbarStyle.id = 'mobile-scrollbar-style';
+            scrollbarStyle.textContent = `
+                .cluster-labels-container::-webkit-scrollbar {
+                    width: 12px;
+                    background: rgba(0,0,0,0.3);
+                }
+                .cluster-labels-container::-webkit-scrollbar-thumb {
+                    background: #00FFC8;
+                    border-radius: 6px;
+                    border: 2px solid rgba(0,0,0,0.3);
+                    min-height: 40px;
+                }
+                .cluster-labels-container::-webkit-scrollbar-track {
+                    background: rgba(255,255,255,0.1);
+                    border-radius: 6px;
+                }
+            `;
+            document.head.appendChild(scrollbarStyle);
+        }
+    }
+}
+
 document.body.appendChild(clusterLabelsContainer);
 
 // Prevent touch events on cluster labels from affecting sphere rotation
@@ -1541,17 +1576,107 @@ function updateClusterLabelsPosition() {
     
     // For mobile view: set width to 80% and center it
     if (isMobileView) {
-        clusterLabelsContainer.style.width = '80%';
+        clusterLabelsContainer.style.width = '75%'; // Slightly smaller width to make room for the scrollbar
         clusterLabelsContainer.style.left = '5%'; // 5% on each side centers it
         clusterLabelsContainer.style.right = 'auto'; // No need to set right when left and width are specified
         clusterLabelsContainer.style.borderRadius = '8px'; // Add rounded corners for better mobile appearance
         clusterLabelsContainer.style.pointerEvents = 'auto'; // Ensure touch events are captured
+        clusterLabelsContainer.style.paddingRight = '5px'; // Add padding to the right for the scrollbar
+        
+        // Add a custom scrollbar indicator for mobile
+        const scrollbarWidth = '12px';
+        clusterLabelsContainer.style.borderRight = `${scrollbarWidth} solid rgba(255, 255, 255, 0.2)`; // Visible scrollbar area
+        
+        // Make the scroll handle more prominent by creating a drag indicator
+        createOrUpdateScrollDragIndicator();
+        
+        // Update scrollbar styling
+        updateScrollbarStyle();
     } else {
         clusterLabelsContainer.style.width = '100%';
         clusterLabelsContainer.style.left = '0';
         clusterLabelsContainer.style.right = 'auto';
+        clusterLabelsContainer.style.borderRight = 'none'; // Remove scrollbar indicator when not on mobile
+        
+        // Remove drag indicator when on desktop
+        const dragIndicator = document.getElementById('scroll-drag-indicator');
+        if (dragIndicator) {
+            dragIndicator.style.display = 'none';
+        }
     }
 }
+
+// Function to create or update the scroll drag indicator
+function createOrUpdateScrollDragIndicator() {
+    let dragIndicator = document.getElementById('scroll-drag-indicator');
+    
+    if (!dragIndicator) {
+        // Create the drag indicator element
+        dragIndicator = document.createElement('div');
+        dragIndicator.id = 'scroll-drag-indicator';
+        dragIndicator.innerHTML = '<div></div><div></div><div></div>'; // Three lines to indicate draggable
+        
+        // Style the drag indicator
+        dragIndicator.style.position = 'absolute';
+        dragIndicator.style.right = '5px';
+        dragIndicator.style.top = '50%';
+        dragIndicator.style.transform = 'translateY(-50%)';
+        dragIndicator.style.width = '16px';
+        dragIndicator.style.height = '36px';
+        dragIndicator.style.borderRadius = '8px';
+        dragIndicator.style.backgroundColor = 'rgba(0, 255, 200, 0.5)';
+        dragIndicator.style.display = 'flex';
+        dragIndicator.style.flexDirection = 'column';
+        dragIndicator.style.justifyContent = 'center';
+        dragIndicator.style.alignItems = 'center';
+        dragIndicator.style.gap = '3px';
+        dragIndicator.style.padding = '2px';
+        dragIndicator.style.zIndex = '25';
+        dragIndicator.style.pointerEvents = 'none'; // Let touch events pass through to the scrollbar
+        
+        // Style the three lines inside the indicator
+        for (const div of dragIndicator.children) {
+            div.style.width = '8px';
+            div.style.height = '2px';
+            div.style.backgroundColor = 'white';
+            div.style.borderRadius = '1px';
+        }
+        
+        document.body.appendChild(dragIndicator);
+    }
+    
+    // Position the drag indicator alongside the cluster labels container
+    const containerRect = clusterLabelsContainer.getBoundingClientRect();
+    dragIndicator.style.display = 'flex';
+    
+    // Update position based on the cluster labels container's dimensions
+    dragIndicator.style.height = Math.min(36, containerRect.height / 2) + 'px';
+    // Position it vertically centered on the right edge of the container
+    dragIndicator.style.top = (containerRect.top + containerRect.height / 2) + 'px';
+    dragIndicator.style.right = (window.innerWidth - containerRect.right + 4) + 'px';
+}
+
+// Listen for scroll events to reposition the drag indicator
+clusterLabelsContainer.addEventListener('scroll', () => {
+    if (isMobileView) {
+        requestAnimationFrame(() => {
+            const dragIndicator = document.getElementById('scroll-drag-indicator');
+            if (dragIndicator) {
+                // Adjust indicator position based on scroll percentage
+                const containerRect = clusterLabelsContainer.getBoundingClientRect();
+                const scrollPercent = clusterLabelsContainer.scrollTop / 
+                    (clusterLabelsContainer.scrollHeight - clusterLabelsContainer.clientHeight);
+                
+                // Move the indicator down as scrolling progresses, but keep it within container bounds
+                const maxOffset = containerRect.height - parseFloat(dragIndicator.style.height) - 10;
+                const minOffset = 5;
+                const offsetY = minOffset + scrollPercent * maxOffset;
+                
+                dragIndicator.style.top = (containerRect.top + offsetY) + 'px';
+            }
+        });
+    }
+});
 
 // Initialize labels position based on current view
 updateClusterLabelsPosition();
