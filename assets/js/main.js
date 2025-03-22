@@ -447,8 +447,9 @@ function createStarsForBlock(blockNumber) {
             const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
             const lineMaterial = new THREE.LineBasicMaterial({
                 color: 0xCCCCCC,
-                opacity: 0.4,
-                transparent: true
+                opacity: 0.2,
+                transparent: true,
+                linewidth: 0.2
             });
             const labelLine = new THREE.Line(lineGeometry, lineMaterial);
 
@@ -494,8 +495,9 @@ function createStarsForBlock(blockNumber) {
             const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
             const lineMaterial = new THREE.LineBasicMaterial({
                 color: 0xCCCCCC,
-                opacity: 0.4,
-                transparent: true
+                opacity: 0.2,
+                transparent: true,
+                linewidth: 0.2
             });
             const labelLine = new THREE.Line(lineGeometry, lineMaterial);
 
@@ -579,8 +581,9 @@ function createStarsForBlock(blockNumber) {
             ]);
             const constellationLineMat = new THREE.LineBasicMaterial({
                 color: color,
-                opacity: 0.7,
-                transparent: true
+                opacity: 0.2,
+                transparent: true,
+                linewidth: 0.2
             });
             const constellationLine = new THREE.Line(constellationLineGeo, constellationLineMat);
             scene.add(constellationLine);
