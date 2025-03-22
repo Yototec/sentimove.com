@@ -159,6 +159,8 @@ window.addEventListener('resize', () => {
     
     if (wasMobile !== isMobileView) {
         console.log("Mobile state changed:", isMobileView, "Width:", window.innerWidth);
+        // Update blockNavUI position when mobile state changes
+        blockNavUI.style.bottom = isMobileView ? '60px' : '40px';
     }
     
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -239,7 +241,7 @@ let isFirstPlaythrough = true; // Flag to track if this is the first automatic p
 // Add UI for block navigation
 const blockNavUI = document.createElement('div');
 blockNavUI.style.position = 'absolute';
-blockNavUI.style.bottom = '40px';
+blockNavUI.style.bottom = isMobileView ? '60px' : '40px';
 blockNavUI.style.width = '100%';
 blockNavUI.style.textAlign = 'center';
 blockNavUI.style.color = 'white';
@@ -1454,7 +1456,7 @@ function updateClusterLabelsPosition() {
     clusterLabelsContainer.style.display = isMobileView ? 'flex' : 'none';
     
     // Adjust position and height for mobile
-    clusterLabelsContainer.style.bottom = isMobileView ? '80px' : '100px';
+    clusterLabelsContainer.style.bottom = isMobileView ? '110px' : '100px';
     clusterLabelsContainer.style.maxHeight = isMobileView ? '100px' : '80px'; // Give more room on mobile
 }
 

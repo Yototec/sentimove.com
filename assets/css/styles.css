@@ -134,6 +134,13 @@ input[type=range]:focus::-webkit-slider-runnable-track {
     /* Improve visibility of UI elements */
     #footer {
         font-size: 14px;
-        bottom: 15px;
+        bottom: 0;
+        padding: 8px 10px;
+        box-sizing: border-box;
+        z-index: 30; /* Higher z-index to ensure it's on top */
+        background-color: rgba(0, 0, 0, 0.7);
+        border-radius: 0;
+        width: 100%;
+        position: fixed;
     }
 }
