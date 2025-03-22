@@ -794,7 +794,7 @@ function createStarsForBlock(blockNumber) {
         const star = new THREE.Mesh(mobileStarGeometry, new THREE.MeshBasicMaterial({
             color: starColor,
             emissive: starColor,
-            emissiveIntensity: isMobileView ? 1.5 : 0.5 // Higher brightness on mobile (increased from 1.0 to 1.5)
+            emissiveIntensity: isMobileView ? 3.0 : 0.5 // Higher brightness on mobile (increased from 1.5 to 3.0)
         }));
 
         // Position stars on the inside of a sphere
@@ -1014,9 +1014,9 @@ function createStarsForBlock(blockNumber) {
             ]);
             const constellationLineMat = new THREE.LineBasicMaterial({
                 color: color,
-                opacity: isMobileView ? 0.7 : 0.2, // More visible lines on mobile
+                opacity: isMobileView ? 0.9 : 0.2, // More visible lines on mobile (increased from 0.7 to 0.9)
                 transparent: true,
-                linewidth: isMobileView ? 1.0 : 0.2 // Much thicker lines on mobile
+                linewidth: isMobileView ? 1.5 : 0.2 // Thicker lines on mobile (increased from 1.0 to 1.5)
             });
             const constellationLine = new THREE.Line(constellationLineGeo, constellationLineMat);
             scene.add(constellationLine);
@@ -1393,7 +1393,7 @@ function createEmergencyFallbackStars() {
         const starMat = new THREE.MeshBasicMaterial({
             color: color,
             emissive: color,
-            emissiveIntensity: isMobileView ? 2.0 : 1.0 // Double brightness on mobile
+            emissiveIntensity: isMobileView ? 4.0 : 1.0 // Increased brightness on mobile (from 2.0 to 4.0)
         });
         
         const star = new THREE.Mesh(starGeom, starMat);
@@ -1435,30 +1435,6 @@ function createEmergencyFallbackStars() {
             fromStar: fromStar,
             toStar: toStar
         };
-    }
-    
-    // Add some special highlight stars
-    for (let i = 0; i < 5; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const distance = 10 + Math.random() * 20;
-        const x = Math.cos(angle) * distance;
-        const y = Math.sin(angle) * distance;
-        const z = 10 + Math.random() * 30;
-        
-        // Create a bright highlight star (smaller on mobile but brighter)
-        const highlightStarSize = isMobileView ? 3.0 : 4.0; // Smaller on mobile but still prominent
-        const highlightStarGeom = new THREE.SphereGeometry(highlightStarSize, 32, 32);
-        const highlightStarMat = new THREE.MeshBasicMaterial({
-            color: 0xFFFFFF,
-            emissive: 0xFFFFFF,
-            emissiveIntensity: isMobileView ? 2.5 : 1.0 // Much brighter on mobile
-        });
-        
-        const highlightStar = new THREE.Mesh(highlightStarGeom, highlightStarMat);
-        highlightStar.position.set(x, y, z);
-        
-        scene.add(highlightStar);
-        starObjects.push(highlightStar);
     }
     
     console.log(`Created ${starObjects.length} emergency stars and ${constellationLines.length} lines`);
@@ -1529,6 +1505,30 @@ function createEmergencyFallbackStars() {
             clusterLabelsContainer.appendChild(labelContainer);
         }
     });
+
+    // Add some special highlight stars
+    for (let i = 0; i < 5; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 10 + Math.random() * 20;
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance;
+        const z = 10 + Math.random() * 30;
+        
+        // Create a bright highlight star (smaller on mobile but brighter)
+        const highlightStarSize = isMobileView ? 3.0 : 4.0; // Smaller on mobile but still prominent
+        const highlightStarGeom = new THREE.SphereGeometry(highlightStarSize, 32, 32);
+        const highlightStarMat = new THREE.MeshBasicMaterial({
+            color: 0xFFFFFF,
+            emissive: 0xFFFFFF,
+            emissiveIntensity: isMobileView ? 4.5 : 1.0 // Much brighter on mobile (increased from 2.5 to 4.5)
+        });
+        
+        const highlightStar = new THREE.Mesh(highlightStarGeom, highlightStarMat);
+        highlightStar.position.set(x, y, z);
+        
+        scene.add(highlightStar);
+        starObjects.push(highlightStar);
+    }
 }
 
 // Add a mobile-specific forced visibility check
