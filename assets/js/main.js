@@ -123,6 +123,7 @@ let labelRenderer;
 // Variables for animation between blocks
 let starObjects = [];
 let constellationLines = [];
+let labelObjects = []; // Add array to track label objects
 let blockData = {};
 let currentBlockIndex = 0;
 let targetBlockIndex = 0;
@@ -233,6 +234,13 @@ slider.addEventListener('input', function () {
     if (!isTransitioning) {
         const newIndex = parseInt(this.value);
         if (targetBlockIndex !== newIndex) {
+            // Check if the target block has data before transitioning
+            const targetBlockNumber = blockNumbers[newIndex];
+            if (!blockData[targetBlockNumber] || blockData[targetBlockNumber].length === 0) {
+                console.warn(`Block ${targetBlockNumber} has no data, skipping transition`);
+                return;
+            }
+            
             targetBlockIndex = newIndex;
             transitionProgress = 0;
             isTransitioning = true;
@@ -259,7 +267,27 @@ toggleButton.addEventListener('click', () => {
     if (isAutoPlaying) {
         autoplayTimer = setInterval(() => {
             if (!isTransitioning) {
-                targetBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
+                // Find next valid block index
+                let nextBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
+                let attempts = 0;
+                const maxAttempts = blockNumbers.length;
+                
+                // Keep trying different blocks until we find one with data or exhaust all options
+                while (attempts < maxAttempts) {
+                    const nextBlockNumber = blockNumbers[nextBlockIndex];
+                    if (blockData[nextBlockNumber] && blockData[nextBlockNumber].length > 0) {
+                        break; // Found a valid block
+                    }
+                    nextBlockIndex = (nextBlockIndex + 1) % blockNumbers.length;
+                    attempts++;
+                }
+                
+                if (attempts >= maxAttempts) {
+                    console.error('No valid blocks found for transition');
+                    return;
+                }
+                
+                targetBlockIndex = nextBlockIndex;
                 slider.value = targetBlockIndex;
                 isTransitioning = true;
                 transitionProgress = 0;
@@ -346,12 +374,15 @@ function createStarsForBlock(blockNumber) {
     starObjects.forEach(star => scene.remove(star));
     constellationLines.forEach(line => scene.remove(line));
 
-    // Also remove any existing labels
-    scene.traverse(object => {
-        if (object instanceof THREE.CSS2DObject) {
-            scene.remove(object);
-        }
-    });
+    // Also remove any existing labels if we're not transitioning
+    if (!isTransitioning) {
+        scene.traverse(object => {
+            if (object instanceof THREE.CSS2DObject) {
+                scene.remove(object);
+            }
+        });
+        labelObjects = []; // Clear label objects array
+    }
 
     starObjects = [];
     constellationLines = [];
@@ -445,6 +476,8 @@ function createStarsForBlock(blockNumber) {
 
             const label = new THREE.CSS2DObject(div);
             label.position.copy(labelPosition);
+            label.userData.clusterGroup = groupId; // Store cluster group id for tracking
+            label.userData.title = clusterTitle; // Store the title
 
             // Create a line from the star to the label
             const linePoints = [starPosition, labelPosition];
@@ -466,6 +499,7 @@ function createStarsForBlock(blockNumber) {
             scene.add(label);
             scene.add(labelLine);
             constellationLines.push(labelLine);
+            labelObjects.push(label); // Track the label
         } else {
             // Calculate center of mass for the cluster
             const centerOfMass = new THREE.Vector3();
@@ -493,6 +527,8 @@ function createStarsForBlock(blockNumber) {
 
             const label = new THREE.CSS2DObject(div);
             label.position.copy(labelPosition);
+            label.userData.clusterGroup = groupId; // Store cluster group id for tracking
+            label.userData.title = clusterTitle; // Store the title
 
             // Create a line from the center of mass to the label
             const linePoints = [centerOfMass, labelPosition];
@@ -514,6 +550,7 @@ function createStarsForBlock(blockNumber) {
             scene.add(label);
             scene.add(labelLine);
             constellationLines.push(labelLine);
+            labelObjects.push(label); // Track the label
         }
 
         // Skip creating connections if there's only 1 star in the group
@@ -615,16 +652,21 @@ function updateStarPositions() {
         isTransitioning = false;
         currentBlockIndex = targetBlockIndex;
 
+        // Clean up first - remove all existing objects
+        starObjects.forEach(star => scene.remove(star));
+        constellationLines.forEach(line => scene.remove(line));
+        labelObjects.forEach(label => scene.remove(label));
+        
+        starObjects = [];
+        constellationLines = [];
+        labelObjects = [];
+
         // Update with final positions
         createStarsForBlock(blockNumbers[currentBlockIndex]);
     } else {
-        // During transition - remove all items and create interpolated positions
-        scene.traverse(object => {
-            if (object instanceof THREE.CSS2DObject) {
-                scene.remove(object);
-            }
-        });
-
+        // During transition - update positions without removing labels
+        
+        // Remove constellation lines
         constellationLines.forEach(line => scene.remove(line));
         constellationLines = [];
 
@@ -632,7 +674,13 @@ function updateStarPositions() {
         const currentBlock = blockData[blockNumbers[currentBlockIndex]];
         const targetBlock = blockData[blockNumbers[targetBlockIndex]];
 
-        if (!currentBlock || !targetBlock) return;
+        // Safety check - if either block is missing data, abort transition
+        if (!currentBlock || !targetBlock || currentBlock.length === 0 || targetBlock.length === 0) {
+            console.error('Missing data in current or target block, aborting transition');
+            transitionProgress = 1.0; // Force transition to complete
+            isTransitioning = false;
+            return;
+        }
 
         // Map stars by cluster group for easier matching
         const currentStarsByCluster = {};
@@ -695,6 +743,9 @@ function updateStarPositions() {
 
             star.position.set(newX, newY, newZ);
         });
+
+        // During transitions, we'll let the lines update naturally in the animate loop
+        // and let the labels be completely recreated at the end of transition
     }
 }
 
