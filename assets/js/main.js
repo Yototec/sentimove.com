@@ -184,17 +184,44 @@ fetch('https://api.sentichain.com/mapper/get_points_by_block_no_embedding?block_
             const clusterTitle = groupStars[0].userData.title;
 
             if (groupStars.length <= 1) {
-                // If only one star in the group, add label to that star
+                // If only one star in the group, add label outside the star
+                const starPosition = groupStars[0].position;
+
+                // Create a label object
                 const div = document.createElement('div');
                 div.className = 'label';
                 div.textContent = clusterTitle;
-                div.style.marginTop = '-1em';
                 div.style.color = 'white';
-                div.style.fontSize = '0.5em';
+                div.style.fontSize = '0.8em';
+                div.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                div.style.padding = '3px 6px';
+                div.style.borderRadius = '3px';
 
+                // Calculate position outside the sphere
+                const labelOffset = 1.2; // Position labels 20% outside the sphere
+                const labelPosition = starPosition.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
+                
                 const label = new THREE.CSS2DObject(div);
-                label.position.set(0, 0.5, 0);
-                groupStars[0].add(label);
+                label.position.copy(labelPosition);
+
+                // Create a line from the star to the label
+                const linePoints = [starPosition, labelPosition];
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0xCCCCCC, 
+                    opacity: 0.4,
+                    transparent: true
+                });
+                const labelLine = new THREE.Line(lineGeometry, lineMaterial);
+                
+                // Store references for animation updates
+                labelLine.userData.startPoint = starPosition;
+                labelLine.userData.endPoint = labelPosition;
+                labelLine.userData.isLabelLine = true;
+
+                // Add label and line to scene
+                scene.add(label);
+                scene.add(labelLine);
             } else {
                 // Calculate center of mass for the cluster
                 const centerOfMass = new THREE.Vector3();
@@ -207,15 +234,37 @@ fetch('https://api.sentichain.com/mapper/get_points_by_block_no_embedding?block_
                 const div = document.createElement('div');
                 div.className = 'label';
                 div.textContent = clusterTitle;
-                div.style.marginTop = '-1em';
                 div.style.color = 'white';
-                div.style.fontSize = '0.5em';
+                div.style.fontSize = '0.8em';
+                div.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                div.style.padding = '3px 6px';
+                div.style.borderRadius = '3px';
 
+                // Calculate position outside the sphere
+                const labelOffset = 1.2; // Position labels 20% outside the sphere
+                const labelPosition = centerOfMass.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
+                
                 const label = new THREE.CSS2DObject(div);
-                label.position.copy(centerOfMass);
+                label.position.copy(labelPosition);
 
-                // Add label to scene
+                // Create a line from the center of mass to the label
+                const linePoints = [centerOfMass, labelPosition];
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0xCCCCCC, 
+                    opacity: 0.4,
+                    transparent: true
+                });
+                const labelLine = new THREE.Line(lineGeometry, lineMaterial);
+                
+                // Store references for animation updates
+                labelLine.userData.startPoint = centerOfMass;
+                labelLine.userData.endPoint = labelPosition;
+                labelLine.userData.isLabelLine = true;
+
+                // Add label and line to scene
                 scene.add(label);
+                scene.add(labelLine);
             }
 
             // Skip creating connections if there's only 1 star in the group
@@ -322,13 +371,22 @@ fetch('https://api.sentichain.com/mapper/get_points_by_block_no_embedding?block_
 
             // Update constellation lines
             scene.traverse(object => {
-                if (object instanceof THREE.Line && object.userData.fromStar) {
-                    const lineGeo = new THREE.BufferGeometry().setFromPoints([
-                        object.userData.fromStar.position,
-                        object.userData.toStar.position
-                    ]);
-                    object.geometry.dispose();
-                    object.geometry = lineGeo;
+                if (object instanceof THREE.Line) {
+                    if (object.userData.fromStar) {
+                        const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                            object.userData.fromStar.position,
+                            object.userData.toStar.position
+                        ]);
+                        object.geometry.dispose();
+                        object.geometry = lineGeo;
+                    } else if (object.userData.isLabelLine) {
+                        const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                            object.userData.startPoint,
+                            object.userData.endPoint
+                        ]);
+                        object.geometry.dispose();
+                        object.geometry = lineGeo;
+                    }
                 }
             });
 
