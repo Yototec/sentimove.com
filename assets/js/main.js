@@ -84,6 +84,9 @@ document.addEventListener('mousemove', (event) => {
 
 // Handle touch events for mobile
 document.addEventListener('touchstart', (event) => {
+    // Skip if the touch is on the cluster labels container
+    if (event.target.closest('.cluster-labels-container')) return;
+    
     if (event.touches.length === 1) {
         isTouching = true;
         lastTouchX = event.touches[0].clientX;
@@ -92,6 +95,9 @@ document.addEventListener('touchstart', (event) => {
 }, { passive: true });
 
 document.addEventListener('touchmove', (event) => {
+    // Skip if the touch is on the cluster labels container
+    if (event.target.closest('.cluster-labels-container')) return;
+    
     if (isTouching && event.touches.length === 1) {
         // Calculate touch delta
         const touchX = event.touches[0].clientX;
@@ -251,6 +257,7 @@ document.body.appendChild(blockNavUI);
 
 // Create a container for cluster labels
 const clusterLabelsContainer = document.createElement('div');
+clusterLabelsContainer.className = 'cluster-labels-container';
 clusterLabelsContainer.style.position = 'absolute';
 clusterLabelsContainer.style.bottom = '100px'; // Position above the slider
 clusterLabelsContainer.style.left = '0';
@@ -268,6 +275,19 @@ clusterLabelsContainer.style.overflowX = 'hidden'; // Prevent horizontal scrolli
 clusterLabelsContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
 clusterLabelsContainer.style.backdropFilter = 'blur(2px)';
 document.body.appendChild(clusterLabelsContainer);
+
+// Prevent touch events on cluster labels from affecting sphere rotation
+clusterLabelsContainer.addEventListener('touchstart', (event) => {
+    event.stopPropagation();
+}, { passive: false });
+
+clusterLabelsContainer.addEventListener('touchmove', (event) => {
+    event.stopPropagation();
+}, { passive: true });
+
+clusterLabelsContainer.addEventListener('touchend', (event) => {
+    event.stopPropagation();
+}, { passive: false });
 
 // Set up animation controls
 const animationControlsUI = document.createElement('div');
@@ -1487,6 +1507,7 @@ function updateClusterLabelsPosition() {
         clusterLabelsContainer.style.left = '5%'; // 5% on each side centers it
         clusterLabelsContainer.style.right = 'auto'; // No need to set right when left and width are specified
         clusterLabelsContainer.style.borderRadius = '8px'; // Add rounded corners for better mobile appearance
+        clusterLabelsContainer.style.pointerEvents = 'auto'; // Ensure touch events are captured
     } else {
         clusterLabelsContainer.style.width = '100%';
         clusterLabelsContainer.style.left = '0';
