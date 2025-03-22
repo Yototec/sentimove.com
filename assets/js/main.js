@@ -153,7 +153,7 @@ document.body.appendChild(animationControlsUI);
 
 // Create a slider container
 const sliderContainer = document.createElement('div');
-sliderContainer.style.width = '80%';
+sliderContainer.style.width = '50%';
 sliderContainer.style.margin = '0 auto';
 sliderContainer.style.position = 'relative';
 sliderContainer.style.padding = '0 10px';
@@ -207,20 +207,7 @@ blockLabel.style.fontFamily = 'Arial, sans-serif';
 blockLabel.textContent = 'Block 0';
 document.body.appendChild(blockLabel);
 
-// Create playback button
-const playPauseBtn = document.createElement('button');
-playPauseBtn.textContent = 'Play Animation';
-playPauseBtn.style.padding = '5px 10px';
-playPauseBtn.style.margin = '0 5px';
-playPauseBtn.style.backgroundColor = '#555';
-playPauseBtn.style.color = 'white';
-playPauseBtn.style.border = 'none';
-playPauseBtn.style.borderRadius = '3px';
-playPauseBtn.style.cursor = 'pointer';
-playPauseBtn.style.display = 'none'; // Hide the button, as we're using just the slider
-animationControlsUI.appendChild(playPauseBtn);
-
-let isAutoPlaying = false;
+let isAutoPlaying = true;
 const autoplaySpeed = 2000; // milliseconds between block transitions
 let autoplayTimer = null;
 
@@ -242,7 +229,7 @@ function updateBlockLabel() {
 }
 
 // Add event listeners for the slider
-slider.addEventListener('input', function() {
+slider.addEventListener('input', function () {
     if (!isTransitioning) {
         const newIndex = parseInt(this.value);
         if (targetBlockIndex !== newIndex) {
@@ -268,7 +255,7 @@ function updateToggleButton() {
 toggleButton.addEventListener('click', () => {
     isAutoPlaying = !isAutoPlaying;
     updateToggleButton();
-    
+
     if (isAutoPlaying) {
         autoplayTimer = setInterval(() => {
             if (!isTransitioning) {
@@ -291,14 +278,14 @@ fetch('https://api.sentichain.com/mapper/get_max_block_number')
         const maxBlockNumber = data.max_block_number;
         const startBlock = maxBlockNumber - 20;
         const endBlock = maxBlockNumber;
-        
+
         // Now fetch the points using the calculated blocks
         return fetch(`https://api.sentichain.com/mapper/get_points_by_block_range_no_embedding?start_block=${startBlock}&end_block=${endBlock}&api_key=abc123`);
     })
     .then(response => response.json())
     .then(data => {
         const points = data.points;
-        
+
         // Organize points by block number
         points.forEach(point => {
             const blockNumber = point[0]; // 1st item is block number
@@ -308,23 +295,34 @@ fetch('https://api.sentichain.com/mapper/get_max_block_number')
             }
             blockData[blockNumber].push(point);
         });
-        
+
         // Sort block numbers for sequential animation
         blockNumbers.sort((a, b) => a - b);
-        
+
         // Initialize with the first block
         currentBlockIndex = 0;
         targetBlockIndex = 0;
-        
+
         // Create initial stars and constellations
         createStarsForBlock(blockNumbers[currentBlockIndex]);
-        
+
         // Update slider for block navigation
         updateSlider();
-        
+
         // Initialize toggle button state
         updateToggleButton();
-        
+
+        // Start autoplay timer immediately since isAutoPlaying is true
+        autoplayTimer = setInterval(() => {
+            if (!isTransitioning) {
+                targetBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
+                slider.value = targetBlockIndex;
+                isTransitioning = true;
+                transitionProgress = 0;
+                updateBlockLabel();
+            }
+        }, autoplaySpeed);
+
         // Add CSS2D renderer for labels
         labelRenderer = new THREE.CSS2DRenderer();
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -347,19 +345,19 @@ function createStarsForBlock(blockNumber) {
     // Clear existing star objects and lines
     starObjects.forEach(star => scene.remove(star));
     constellationLines.forEach(line => scene.remove(line));
-    
+
     // Also remove any existing labels
     scene.traverse(object => {
         if (object instanceof THREE.CSS2DObject) {
             scene.remove(object);
         }
     });
-    
+
     starObjects = [];
     constellationLines = [];
-    
+
     if (!blockData[blockNumber]) return;
-    
+
     const points = blockData[blockNumber];
     const stars = [];
 
@@ -440,20 +438,20 @@ function createStarsForBlock(blockNumber) {
             // Calculate position outside the sphere
             const labelOffset = 1.5; // Position labels 100% outside the sphere
             const labelPosition = starPosition.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
-            
+
             const label = new THREE.CSS2DObject(div);
             label.position.copy(labelPosition);
 
             // Create a line from the star to the label
             const linePoints = [starPosition, labelPosition];
             const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
-            const lineMaterial = new THREE.LineBasicMaterial({ 
-                color: 0xCCCCCC, 
+            const lineMaterial = new THREE.LineBasicMaterial({
+                color: 0xCCCCCC,
                 opacity: 0.4,
                 transparent: true
             });
             const labelLine = new THREE.Line(lineGeometry, lineMaterial);
-            
+
             // Store references for animation updates
             labelLine.userData.startPoint = starPosition;
             labelLine.userData.endPoint = labelPosition;
@@ -487,20 +485,20 @@ function createStarsForBlock(blockNumber) {
             // Calculate position outside the sphere
             const labelOffset = 1.5; // Position labels 100% outside the sphere
             const labelPosition = centerOfMass.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
-            
+
             const label = new THREE.CSS2DObject(div);
             label.position.copy(labelPosition);
 
             // Create a line from the center of mass to the label
             const linePoints = [centerOfMass, labelPosition];
             const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
-            const lineMaterial = new THREE.LineBasicMaterial({ 
-                color: 0xCCCCCC, 
+            const lineMaterial = new THREE.LineBasicMaterial({
+                color: 0xCCCCCC,
                 opacity: 0.4,
                 transparent: true
             });
             const labelLine = new THREE.Line(lineGeometry, lineMaterial);
-            
+
             // Store references for animation updates
             labelLine.userData.startPoint = centerOfMass;
             labelLine.userData.endPoint = labelPosition;
@@ -600,16 +598,16 @@ function createStarsForBlock(blockNumber) {
 // Function to transition between blocks
 function updateStarPositions() {
     if (!isTransitioning) return;
-    
+
     // Update transition progress
     transitionProgress += transitionSpeed;
-    
+
     if (transitionProgress >= 1.0) {
         // Transition complete
         transitionProgress = 1.0;
         isTransitioning = false;
         currentBlockIndex = targetBlockIndex;
-        
+
         // Update with final positions
         createStarsForBlock(blockNumbers[currentBlockIndex]);
     } else {
@@ -619,20 +617,20 @@ function updateStarPositions() {
                 scene.remove(object);
             }
         });
-        
+
         constellationLines.forEach(line => scene.remove(line));
         constellationLines = [];
-        
+
         // Keep existing stars but update their positions
         const currentBlock = blockData[blockNumbers[currentBlockIndex]];
         const targetBlock = blockData[blockNumbers[targetBlockIndex]];
-        
+
         if (!currentBlock || !targetBlock) return;
-        
+
         // Map stars by cluster group for easier matching
         const currentStarsByCluster = {};
         const targetStarsByCluster = {};
-        
+
         currentBlock.forEach(point => {
             const clusterGroup = point[5];
             if (!currentStarsByCluster[clusterGroup]) {
@@ -640,7 +638,7 @@ function updateStarPositions() {
             }
             currentStarsByCluster[clusterGroup].push(point);
         });
-        
+
         targetBlock.forEach(point => {
             const clusterGroup = point[5];
             if (!targetStarsByCluster[clusterGroup]) {
@@ -648,46 +646,46 @@ function updateStarPositions() {
             }
             targetStarsByCluster[clusterGroup].push(point);
         });
-        
+
         // For each star object, find the corresponding position in target block
         starObjects.forEach((star, index) => {
             const clusterGroup = star.userData.clusterGroup;
-            
+
             // Get corresponding points from current and target blocks
             const currentPoints = currentStarsByCluster[clusterGroup];
             const targetPoints = targetStarsByCluster[clusterGroup];
-            
+
             if (!currentPoints || !targetPoints) return;
-            
+
             // Match the star with corresponding point in current block
             let matchIndex = Math.min(index % currentPoints.length, currentPoints.length - 1);
             let currentPoint = currentPoints[matchIndex];
-            
+
             // Find corresponding point in target block
             let targetMatchIndex = Math.min(matchIndex, targetPoints.length - 1);
             let targetPoint = targetPoints[targetMatchIndex];
-            
+
             // Get current coordinates
             const currentX = currentPoint[3];
             const currentY = currentPoint[4];
-            
+
             // Get target coordinates
             const targetX = targetPoint[3];
             const targetY = targetPoint[4];
-            
+
             // Interpolate between coordinates
             const interpX = currentX + (targetX - currentX) * transitionProgress;
             const interpY = currentY + (targetY - currentY) * transitionProgress;
-            
+
             // Convert interpolated coordinates to 3D position
             const longitude = interpX * Math.PI - Math.PI / 2;
             const latitude = interpY * Math.PI / 3;
-            
+
             // Update star position
             const newX = sphereRadius * Math.cos(latitude) * Math.sin(longitude);
             const newY = sphereRadius * Math.sin(latitude);
             const newZ = sphereRadius * Math.cos(latitude) * Math.cos(longitude);
-            
+
             star.position.set(newX, newY, newZ);
         });
     }
@@ -762,7 +760,7 @@ function animate() {
 
     // Update camera position based on rotation
     updateCameraPosition();
-    
+
     // Update star positions for block transition
     updateStarPositions();
 
