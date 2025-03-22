@@ -45,7 +45,7 @@ vignetteContainer.style.zIndex = '10';
 document.body.appendChild(vignetteContainer);
 
 // Create star material and geometry
-const starGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+const starGeometry = new THREE.SphereGeometry(0.5, 32, 32);
 const starMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
 
 // Set up mouse rotation for telescope aiming
@@ -379,10 +379,14 @@ function createStarsForBlock(blockNumber) {
         const starY = sphereRadius * Math.sin(latitude);
         const starZ = sphereRadius * Math.cos(latitude) * Math.cos(longitude);
 
+        // Calculate star color based on cluster group - same calculation as used for constellation lines
+        const hue = (parseInt(clusterGroup) * 50) % 360;
+        const starColor = new THREE.Color(`hsl(${hue}, 100%, 90%)`);
+
         const star = new THREE.Mesh(starGeometry, new THREE.MeshBasicMaterial({
-            color: 0xFFFFFF,
-            emissive: 0x888888,
-            emissiveIntensity: 1
+            color: starColor,
+            emissive: starColor,
+            emissiveIntensity: 0.5
         }));
 
         // Position stars on the inside of a sphere
