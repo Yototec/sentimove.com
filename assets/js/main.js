@@ -270,9 +270,12 @@ function updateBlockNavUI() {
 function updateToggleButton() {
     toggleButton.style.backgroundColor = isAutoPlaying ? '#4CAF50' : '#FF5252'; // Green for play, red for pause
     
-    // Update speed indicator text
+    // Always calculate and set the speed text, but control visibility with opacity
     const speedMultiplier = Math.round(1000 / currentAutoplaySpeed);
     speedIndicator.textContent = `x${speedMultiplier}`;
+    
+    // Show speed indicator only when playing (green dot)
+    speedIndicator.style.opacity = isAutoPlaying ? '1' : '0';
 }
 
 // Function to determine the correct autoplay speed based on current position
