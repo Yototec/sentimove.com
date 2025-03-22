@@ -183,6 +183,9 @@ window.addEventListener('resize', () => {
 
     // Update camera position
     updateCameraPosition();
+    
+    // Update cluster labels position
+    updateClusterLabelsPosition();
 });
 
 // Add mouse wheel for zooming
@@ -243,6 +246,26 @@ blockNavUI.style.color = 'white';
 blockNavUI.style.fontFamily = 'Arial, sans-serif';
 blockNavUI.style.zIndex = '20';
 document.body.appendChild(blockNavUI);
+
+// Create a container for cluster labels
+const clusterLabelsContainer = document.createElement('div');
+clusterLabelsContainer.style.position = 'absolute';
+clusterLabelsContainer.style.bottom = '100px'; // Position above the slider
+clusterLabelsContainer.style.left = '0';
+clusterLabelsContainer.style.width = '100%';
+clusterLabelsContainer.style.textAlign = 'center';
+clusterLabelsContainer.style.display = 'none'; // Hide by default (for desktop)
+clusterLabelsContainer.style.flexWrap = 'nowrap'; // Don't wrap items
+clusterLabelsContainer.style.justifyContent = 'flex-start'; // Align to start
+clusterLabelsContainer.style.flexDirection = 'column'; // Stack labels vertically
+clusterLabelsContainer.style.padding = '10px';
+clusterLabelsContainer.style.zIndex = '20';
+clusterLabelsContainer.style.maxHeight = '80px';
+clusterLabelsContainer.style.overflowY = 'auto'; // Enable vertical scrolling
+clusterLabelsContainer.style.overflowX = 'hidden'; // Prevent horizontal scrolling
+clusterLabelsContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+clusterLabelsContainer.style.backdropFilter = 'blur(2px)';
+document.body.appendChild(clusterLabelsContainer);
 
 // Set up animation controls
 const animationControlsUI = document.createElement('div');
@@ -632,6 +655,9 @@ function createStarsForBlock(blockNumber) {
         labelObjects = []; // Clear label objects array
     }
 
+    // Clear cluster labels container
+    clusterLabelsContainer.innerHTML = '';
+
     starObjects = [];
     constellationLines = [];
 
@@ -699,6 +725,11 @@ function createStarsForBlock(blockNumber) {
         clusterGroups[group].push(star);
     });
 
+    // Track unique clusters to create labels
+    const uniqueClusters = new Set();
+    const clusterColors = {};
+    const clusterTitles = {};
+
     // Connect stars within the same cluster group and add cluster labels
     Object.keys(clusterGroups).forEach(groupId => {
         const groupStars = clusterGroups[groupId];
@@ -706,6 +737,11 @@ function createStarsForBlock(blockNumber) {
         // Use different colors for different cluster groups
         const hue = (parseInt(groupId) * 50) % 360;
         const color = new THREE.Color(`hsl(${hue}, 100%, 70%)`);
+        
+        // Store cluster information for labels
+        uniqueClusters.add(groupId);
+        clusterColors[groupId] = `hsl(${hue}, 100%, 70%)`;
+        clusterTitles[groupId] = groupStars[0].userData.title;
 
         // Add a label for the cluster group
         // Get the title from the first star in the group
@@ -900,6 +936,45 @@ function createStarsForBlock(blockNumber) {
     });
     
     console.log(`Created ${constellationLines.length} constellation lines`);
+    
+    // Create bullet-point labels at the bottom
+    uniqueClusters.forEach(groupId => {
+        const labelContainer = document.createElement('div');
+        labelContainer.style.display = 'flex';
+        labelContainer.style.alignItems = 'center';
+        labelContainer.style.margin = '2px 10px';
+        labelContainer.style.padding = '4px 0';
+        labelContainer.style.width = 'calc(100% - 20px)'; // Account for margin
+        labelContainer.style.minWidth = '0'; // Allow shrinking below content size
+        
+        // Create colored bullet point
+        const bullet = document.createElement('span');
+        bullet.style.display = 'inline-block';
+        bullet.style.width = isMobileView ? '10px' : '12px';
+        bullet.style.height = isMobileView ? '10px' : '12px';
+        bullet.style.borderRadius = '50%';
+        bullet.style.backgroundColor = clusterColors[groupId];
+        bullet.style.marginRight = '8px';
+        bullet.style.boxShadow = '0 0 3px rgba(255, 255, 255, 0.5)';
+        bullet.style.flexShrink = '0'; // Prevent bullet from shrinking
+        
+        // Create text label
+        const text = document.createElement('span');
+        text.style.color = 'white';
+        text.style.fontSize = '12px';
+        text.style.overflow = 'hidden';
+        text.style.textOverflow = 'ellipsis';
+        text.style.whiteSpace = 'nowrap';
+        text.textContent = clusterTitles[groupId];
+        text.style.flexGrow = '1'; // Allow text to take remaining space
+        text.style.flexShrink = '1'; // Allow text to shrink if needed
+        text.style.minWidth = '0'; // Allow shrinking below content size
+        
+        // Add to container
+        labelContainer.appendChild(bullet);
+        labelContainer.appendChild(text);
+        clusterLabelsContainer.appendChild(labelContainer);
+    });
 }
 
 // Function to transition between blocks
@@ -1124,6 +1199,9 @@ function updateSliderContainerWidth() {
     isMobileView = window.innerWidth < 768;
     sliderContainer.style.width = isMobileView ? '100%' : '50%';
     
+    // Update cluster labels position
+    updateClusterLabelsPosition();
+    
     if (wasMobile !== isMobileView) {
         console.log("Mobile state changed in updateSliderContainerWidth:", isMobileView, "Width:", window.innerWidth);
         
@@ -1174,6 +1252,9 @@ function createEmergencyFallbackStars() {
     starObjects.forEach(star => scene.remove(star));
     constellationLines.forEach(line => scene.remove(line));
     labelObjects.forEach(label => scene.remove(label));
+    
+    // Clear cluster labels container
+    clusterLabelsContainer.innerHTML = '';
     
     starObjects = [];
     constellationLines = [];
@@ -1280,6 +1361,55 @@ function createEmergencyFallbackStars() {
     // Move camera closer for emergency stars
     cameraDistance = 50;
     updateCameraPosition();
+    
+    // Create some emergency labels
+    const emergencyClusterNames = ["Alpha Cluster", "Beta Cluster", "Gamma Cluster", "Delta Cluster", "Omega Cluster"];
+    const emergencyColors = [
+        0xFF5555, // Red
+        0x55FF55, // Green
+        0x5555FF, // Blue
+        0xFFFF55, // Yellow
+        0xFF55FF  // Purple
+    ];
+    
+    // Add emergency cluster labels
+    emergencyColors.forEach((color, index) => {
+        if (index < emergencyClusterNames.length) {
+            const labelContainer = document.createElement('div');
+            labelContainer.style.display = 'flex';
+            labelContainer.style.alignItems = 'center';
+            labelContainer.style.margin = '0 10px';
+            labelContainer.style.padding = isMobileView ? '4px 0' : '2px 0';
+            labelContainer.style.width = '100%'; // Full width for one label per row
+            
+            // Create colored bullet point
+            const bullet = document.createElement('span');
+            bullet.style.display = 'inline-block';
+            bullet.style.width = isMobileView ? '10px' : '12px';
+            bullet.style.height = isMobileView ? '10px' : '12px';
+            bullet.style.borderRadius = '50%';
+            bullet.style.backgroundColor = `#${color.toString(16).padStart(6, '0')}`;
+            bullet.style.marginRight = '5px';
+            bullet.style.boxShadow = '0 0 3px rgba(255, 255, 255, 0.5)';
+            bullet.style.flexShrink = '0'; // Prevent bullet from shrinking
+            
+            // Create text label
+            const text = document.createElement('span');
+            text.style.color = 'white';
+            text.style.fontSize = isMobileView ? '12px' : '14px';
+            text.style.maxWidth = isMobileView ? '100%' : '150px'; // Use full width on mobile
+            text.style.overflow = 'hidden';
+            text.style.textOverflow = 'ellipsis';
+            text.style.whiteSpace = 'nowrap';
+            text.textContent = emergencyClusterNames[index];
+            text.style.flexGrow = '1'; // Allow text to take remaining space
+            
+            // Add to container
+            labelContainer.appendChild(bullet);
+            labelContainer.appendChild(text);
+            clusterLabelsContainer.appendChild(labelContainer);
+        }
+    });
 }
 
 // Add a mobile-specific forced visibility check
@@ -1315,3 +1445,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 1500);
 });
+
+// Function to update cluster labels position based on mobile view
+function updateClusterLabelsPosition() {
+    // Show on mobile, hide on desktop
+    clusterLabelsContainer.style.display = isMobileView ? 'flex' : 'none';
+    
+    // Adjust position and height for mobile
+    clusterLabelsContainer.style.bottom = isMobileView ? '80px' : '100px';
+    clusterLabelsContainer.style.maxHeight = isMobileView ? '100px' : '80px'; // Give more room on mobile
+}
+
+// Initialize labels position based on current view
+updateClusterLabelsPosition();
