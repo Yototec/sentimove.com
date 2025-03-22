@@ -131,6 +131,7 @@ let transitionProgress = 1.0; // Start at 1.0 to immediately show first block
 let transitionSpeed = 0.02; // Speed of transition between blocks
 let isTransitioning = false;
 let blockNumbers = [];
+let isFirstPlaythrough = true; // Flag to track if this is the first automatic playthrough
 
 // Add UI for block navigation
 const blockNavUI = document.createElement('div');
@@ -263,6 +264,7 @@ function updateToggleButton() {
 toggleButton.addEventListener('click', () => {
     isAutoPlaying = !isAutoPlaying;
     updateToggleButton();
+    isFirstPlaythrough = false; // User has clicked the toggle, so disable first playthrough behavior
 
     if (isAutoPlaying) {
         autoplayTimer = setInterval(() => {
@@ -343,7 +345,38 @@ fetch('https://api.sentichain.com/mapper/get_max_block_number')
         // Start autoplay timer immediately since isAutoPlaying is true
         autoplayTimer = setInterval(() => {
             if (!isTransitioning) {
-                targetBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
+                // Check if we're at the last block and this is the first playthrough
+                const nextBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
+                
+                // If we're at the last block and this is the first playthrough, stop
+                if (nextBlockIndex === 0 && isFirstPlaythrough) {
+                    isAutoPlaying = false;
+                    updateToggleButton();
+                    clearInterval(autoplayTimer);
+                    return;
+                }
+                
+                // Find next valid block index
+                let validNextIndex = nextBlockIndex;
+                let attempts = 0;
+                const maxAttempts = blockNumbers.length;
+                
+                // Keep trying different blocks until we find one with data or exhaust all options
+                while (attempts < maxAttempts) {
+                    const nextBlockNumber = blockNumbers[validNextIndex];
+                    if (blockData[nextBlockNumber] && blockData[nextBlockNumber].length > 0) {
+                        break; // Found a valid block
+                    }
+                    validNextIndex = (validNextIndex + 1) % blockNumbers.length;
+                    attempts++;
+                }
+                
+                if (attempts >= maxAttempts) {
+                    console.error('No valid blocks found for transition');
+                    return;
+                }
+                
+                targetBlockIndex = validNextIndex;
                 slider.value = targetBlockIndex;
                 isTransitioning = true;
                 transitionProgress = 0;
