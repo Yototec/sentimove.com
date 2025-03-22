@@ -1583,12 +1583,14 @@ function updateClusterLabelsPosition() {
         clusterLabelsContainer.style.pointerEvents = 'auto'; // Ensure touch events are captured
         clusterLabelsContainer.style.paddingRight = '5px'; // Add padding to the right for the scrollbar
         
-        // Add a custom scrollbar indicator for mobile
-        const scrollbarWidth = '12px';
-        clusterLabelsContainer.style.borderRight = `${scrollbarWidth} solid rgba(255, 255, 255, 0.2)`; // Visible scrollbar area
+        // Remove vertical border stripe
+        clusterLabelsContainer.style.borderRight = 'none';
         
-        // Make the scroll handle more prominent by creating a drag indicator
-        createOrUpdateScrollDragIndicator();
+        // Remove drag indicator if it exists
+        const dragIndicator = document.getElementById('scroll-drag-indicator');
+        if (dragIndicator) {
+            dragIndicator.style.display = 'none';
+        }
         
         // Update scrollbar styling
         updateScrollbarStyle();
