@@ -253,12 +253,12 @@ clusterLabelsContainer.style.position = 'absolute';
 clusterLabelsContainer.style.bottom = '100px'; // Position above the slider
 clusterLabelsContainer.style.left = '0';
 clusterLabelsContainer.style.width = '100%';
-clusterLabelsContainer.style.textAlign = 'center';
+clusterLabelsContainer.style.textAlign = 'left'; // Align to left instead of center
 clusterLabelsContainer.style.display = 'none'; // Hide by default (for desktop)
 clusterLabelsContainer.style.flexWrap = 'nowrap'; // Don't wrap items
 clusterLabelsContainer.style.justifyContent = 'flex-start'; // Align to start
 clusterLabelsContainer.style.flexDirection = 'column'; // Stack labels vertically
-clusterLabelsContainer.style.padding = '10px';
+clusterLabelsContainer.style.padding = '10px 15px'; // Add more left padding
 clusterLabelsContainer.style.zIndex = '20';
 clusterLabelsContainer.style.maxHeight = '80px';
 clusterLabelsContainer.style.overflowY = 'auto'; // Enable vertical scrolling
@@ -942,26 +942,27 @@ function createStarsForBlock(blockNumber) {
         const labelContainer = document.createElement('div');
         labelContainer.style.display = 'flex';
         labelContainer.style.alignItems = 'center';
-        labelContainer.style.margin = '2px 10px';
+        labelContainer.style.margin = '2px 0'; // Remove horizontal margin for left alignment
         labelContainer.style.padding = '4px 0';
-        labelContainer.style.width = 'calc(100% - 20px)'; // Account for margin
+        labelContainer.style.width = '100%';
         labelContainer.style.minWidth = '0'; // Allow shrinking below content size
         
         // Create colored bullet point
         const bullet = document.createElement('span');
         bullet.style.display = 'inline-block';
-        bullet.style.width = isMobileView ? '10px' : '12px';
-        bullet.style.height = isMobileView ? '10px' : '12px';
+        bullet.style.width = '12px';
+        bullet.style.height = '12px';
         bullet.style.borderRadius = '50%';
         bullet.style.backgroundColor = clusterColors[groupId];
-        bullet.style.marginRight = '8px';
+        bullet.style.marginRight = '10px'; // Increase spacing between bullet and text
         bullet.style.boxShadow = '0 0 3px rgba(255, 255, 255, 0.5)';
         bullet.style.flexShrink = '0'; // Prevent bullet from shrinking
         
         // Create text label
         const text = document.createElement('span');
         text.style.color = 'white';
-        text.style.fontSize = '12px';
+        text.style.fontSize = '14px'; // Increase font size
+        text.style.fontWeight = '500'; // Make slightly bolder
         text.style.overflow = 'hidden';
         text.style.textOverflow = 'ellipsis';
         text.style.whiteSpace = 'nowrap';
@@ -1378,26 +1379,27 @@ function createEmergencyFallbackStars() {
             const labelContainer = document.createElement('div');
             labelContainer.style.display = 'flex';
             labelContainer.style.alignItems = 'center';
-            labelContainer.style.margin = '0 10px';
-            labelContainer.style.padding = isMobileView ? '4px 0' : '2px 0';
-            labelContainer.style.width = '100%'; // Full width for one label per row
+            labelContainer.style.margin = '2px 0'; // Remove horizontal margin for left alignment
+            labelContainer.style.padding = '4px 0';
+            labelContainer.style.width = '100%';
             
             // Create colored bullet point
             const bullet = document.createElement('span');
             bullet.style.display = 'inline-block';
-            bullet.style.width = isMobileView ? '10px' : '12px';
-            bullet.style.height = isMobileView ? '10px' : '12px';
+            bullet.style.width = '12px';
+            bullet.style.height = '12px';
             bullet.style.borderRadius = '50%';
             bullet.style.backgroundColor = `#${color.toString(16).padStart(6, '0')}`;
-            bullet.style.marginRight = '5px';
+            bullet.style.marginRight = '10px'; // Increase spacing between bullet and text
             bullet.style.boxShadow = '0 0 3px rgba(255, 255, 255, 0.5)';
             bullet.style.flexShrink = '0'; // Prevent bullet from shrinking
             
             // Create text label
             const text = document.createElement('span');
             text.style.color = 'white';
-            text.style.fontSize = isMobileView ? '12px' : '14px';
-            text.style.maxWidth = isMobileView ? '100%' : '150px'; // Use full width on mobile
+            text.style.fontSize = '14px'; // Increase font size
+            text.style.fontWeight = '500'; // Make slightly bolder
+            text.style.maxWidth = '100%'; // Use full width on mobile
             text.style.overflow = 'hidden';
             text.style.textOverflow = 'ellipsis';
             text.style.whiteSpace = 'nowrap';
