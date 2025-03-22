@@ -435,7 +435,7 @@ blockLabel.style.zIndex = '20';
 blockLabel.style.fontFamily = 'Arial, sans-serif';
 blockLabel.style.textDecoration = 'none';
 blockLabel.style.cursor = 'pointer';
-blockLabel.innerHTML = 'Block 0<span>↗</span>';
+blockLabel.innerHTML = 'Block 0 <span>↗</span>';
 blockLabel.href = 'https://sentichain.com/app?tab=BlockExplorer#';
 blockLabel.target = '_blank'; // Open in new tab
 document.body.appendChild(blockLabel);
@@ -511,7 +511,7 @@ function updateSlider() {
 function updateBlockLabel() {
     if (blockNumbers.length > 0) {
         const blockNumber = blockNumbers[slider.value];
-        blockLabel.innerHTML = `Block ${blockNumber}<span>↗</span>`;
+        blockLabel.innerHTML = `Block ${blockNumber} <span>↗</span>`;
         blockLabel.href = `https://sentichain.com/app?tab=BlockExplorer#`;
         
         // Also update timestamp when block changes
