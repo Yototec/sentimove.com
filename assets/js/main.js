@@ -276,6 +276,13 @@ function updateToggleButton() {
     
     // Show speed indicator only when playing (green dot)
     speedIndicator.style.opacity = isAutoPlaying ? '1' : '0';
+    
+    // Disable slider when playing (green dot), enable when paused (red dot)
+    slider.disabled = isAutoPlaying;
+    
+    // Update slider appearance based on state
+    slider.style.opacity = isAutoPlaying ? '0.5' : '1';
+    slider.style.cursor = isAutoPlaying ? 'not-allowed' : 'pointer';
 }
 
 // Function to determine the correct autoplay speed based on current position
