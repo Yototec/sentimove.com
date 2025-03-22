@@ -155,7 +155,7 @@ document.body.appendChild(animationControlsUI);
 
 // Create a slider container
 const sliderContainer = document.createElement('div');
-sliderContainer.style.width = '50%';
+sliderContainer.style.width = window.innerWidth < 768 ? '80%' : '50%'; // Mobile responsive width
 sliderContainer.style.margin = '0 auto';
 sliderContainer.style.position = 'relative';
 sliderContainer.style.padding = '0 10px';
@@ -991,3 +991,11 @@ function animate() {
         labelRenderer.render(scene, camera);
     }
 }
+
+// Function to update slider container width based on screen size
+function updateSliderContainerWidth() {
+    sliderContainer.style.width = window.innerWidth < 768 ? '100%' : '50%';
+}
+
+// Add resize event listener to handle screen size changes
+window.addEventListener('resize', updateSliderContainerWidth);
