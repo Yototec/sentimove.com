@@ -16,7 +16,7 @@ const horizontalFovRadians = 2 * Math.atan(Math.tan(fovRadians / 2) * aspectRati
 // Use the smaller of the two FOVs to ensure the sphere fits in both dimensions
 const effectiveFovRadians = Math.min(fovRadians, horizontalFovRadians);
 const safetyMargin = 1.2; // 20% extra margin to ensure all stars are visible
-let cameraDistance = (sphereRadius / Math.sin(effectiveFovRadians / 2)) * safetyMargin;
+let cameraDistance = (sphereRadius / Math.sin(effectiveFovRadians / 2)) * safetyMargin * 1.2;
 const minDistance = cameraDistance * 0.8;
 const maxDistance = cameraDistance * 1.2;
 
@@ -192,13 +192,16 @@ fetch('https://api.sentichain.com/mapper/get_points_by_block_no_embedding?block_
                 div.className = 'label';
                 div.textContent = clusterTitle;
                 div.style.color = 'white';
-                div.style.fontSize = '0.8em';
+                div.style.fontSize = '1.0em';
                 div.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                 div.style.padding = '3px 6px';
                 div.style.borderRadius = '3px';
+                div.style.maxWidth = '150px';
+                div.style.wordWrap = 'break-word';
+                div.style.textAlign = 'center';
 
                 // Calculate position outside the sphere
-                const labelOffset = 1.2; // Position labels 20% outside the sphere
+                const labelOffset = 1.5; // Position labels 100% outside the sphere
                 const labelPosition = starPosition.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
                 
                 const label = new THREE.CSS2DObject(div);
@@ -235,13 +238,16 @@ fetch('https://api.sentichain.com/mapper/get_points_by_block_no_embedding?block_
                 div.className = 'label';
                 div.textContent = clusterTitle;
                 div.style.color = 'white';
-                div.style.fontSize = '0.8em';
+                div.style.fontSize = '1.0em';
                 div.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                 div.style.padding = '3px 6px';
                 div.style.borderRadius = '3px';
+                div.style.maxWidth = '150px';
+                div.style.wordWrap = 'break-word';
+                div.style.textAlign = 'center';
 
                 // Calculate position outside the sphere
-                const labelOffset = 1.2; // Position labels 20% outside the sphere
+                const labelOffset = 1.5; // Position labels 100% outside the sphere
                 const labelPosition = centerOfMass.clone().normalize().multiplyScalar(sphereRadius * labelOffset);
                 
                 const label = new THREE.CSS2DObject(div);
