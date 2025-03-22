@@ -92,3 +92,13 @@ input[type=range]:focus {
 input[type=range]:focus::-webkit-slider-runnable-track {
     background: #555;
 }
+
+/* Toggle button styles */
+.toggle-button {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-button:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}

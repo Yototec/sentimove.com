@@ -157,6 +157,9 @@ sliderContainer.style.width = '80%';
 sliderContainer.style.margin = '0 auto';
 sliderContainer.style.position = 'relative';
 sliderContainer.style.padding = '0 10px';
+sliderContainer.style.display = 'flex';
+sliderContainer.style.alignItems = 'center';
+sliderContainer.style.justifyContent = 'center';
 blockNavUI.appendChild(sliderContainer);
 
 // Create a slider input
@@ -166,7 +169,7 @@ slider.min = '0';
 slider.max = '100';
 slider.value = '0';
 slider.step = '1';
-slider.style.width = '50%';
+slider.style.width = '95%';
 slider.style.height = '5px';
 slider.style.backgroundColor = '#555';
 slider.style.outline = 'none';
@@ -175,6 +178,19 @@ slider.style.appearance = 'none';
 slider.style.webkitAppearance = 'none';
 slider.style.cursor = 'pointer';
 sliderContainer.appendChild(slider);
+
+// Create play/pause toggle button
+const toggleButton = document.createElement('div');
+toggleButton.className = 'toggle-button';
+toggleButton.style.width = '16px';
+toggleButton.style.height = '16px';
+toggleButton.style.borderRadius = '50%';
+toggleButton.style.backgroundColor = '#4CAF50'; // Start with green (play)
+toggleButton.style.cursor = 'pointer';
+toggleButton.style.marginLeft = '15px';
+toggleButton.style.boxShadow = '0 0 5px rgba(255, 255, 255, 0.5)';
+toggleButton.style.transition = 'background-color 0.3s';
+sliderContainer.appendChild(toggleButton);
 
 // Create block number label
 const blockLabel = document.createElement('div');
@@ -242,10 +258,15 @@ function updateBlockNavUI() {
     updateSlider();
 }
 
-// Toggle autoplay on button click
-playPauseBtn.addEventListener('click', () => {
+// Update toggle button appearance
+function updateToggleButton() {
+    toggleButton.style.backgroundColor = isAutoPlaying ? '#4CAF50' : '#FF5252'; // Green for play, red for pause
+}
+
+// Add event listener for toggle button
+toggleButton.addEventListener('click', () => {
     isAutoPlaying = !isAutoPlaying;
-    playPauseBtn.textContent = isAutoPlaying ? 'Pause Animation' : 'Play Animation';
+    updateToggleButton();
     
     if (isAutoPlaying) {
         autoplayTimer = setInterval(() => {
@@ -290,6 +311,9 @@ fetch('https://api.sentichain.com/mapper/get_points_by_block_range_no_embedding?
         
         // Update slider for block navigation
         updateSlider();
+        
+        // Initialize toggle button state
+        updateToggleButton();
         
         // Add CSS2D renderer for labels
         labelRenderer = new THREE.CSS2DRenderer();
