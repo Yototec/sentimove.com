@@ -694,14 +694,14 @@ function createStarsForBlock(blockNumber) {
         const hue = (parseInt(clusterGroup) * 50) % 360;
         const starColor = new THREE.Color(`hsl(${hue}, 100%, 90%)`);
 
-        // Use a larger star size on mobile for better visibility
-        const starSize = isMobileView ? 1.2 : 0.5; // Much bigger stars on mobile
+        // Make stars smaller but brighter on mobile
+        const starSize = isMobileView ? 0.8 : 0.5; // Smaller stars on mobile but still larger than desktop
         const mobileStarGeometry = new THREE.SphereGeometry(starSize, isMobileView ? 16 : 32, isMobileView ? 16 : 32);
 
         const star = new THREE.Mesh(mobileStarGeometry, new THREE.MeshBasicMaterial({
             color: starColor,
             emissive: starColor,
-            emissiveIntensity: isMobileView ? 1.0 : 0.5 // Full brightness on mobile
+            emissiveIntensity: isMobileView ? 1.5 : 0.5 // Higher brightness on mobile (increased from 1.0 to 1.5)
         }));
 
         // Position stars on the inside of a sphere
@@ -1291,8 +1291,8 @@ function createEmergencyFallbackStars() {
         const y = Math.sin(angle) * radius;
         const z = 30; // Place closer to camera for visibility
         
-        // Large, bright stars for visibility
-        const starSize = isMobileView ? 3.0 : 1.5;
+        // Smaller but brighter stars for visibility
+        const starSize = isMobileView ? 2.0 : 1.5; // Reduced size for mobile but still easily visible
         const starGeom = new THREE.SphereGeometry(starSize, 16, 16);
         
         // Use a variety of bright colors
@@ -1300,7 +1300,7 @@ function createEmergencyFallbackStars() {
         const starMat = new THREE.MeshBasicMaterial({
             color: color,
             emissive: color,
-            emissiveIntensity: 1.0
+            emissiveIntensity: isMobileView ? 2.0 : 1.0 // Double brightness on mobile
         });
         
         const star = new THREE.Mesh(starGeom, starMat);
@@ -1352,13 +1352,13 @@ function createEmergencyFallbackStars() {
         const y = Math.sin(angle) * distance;
         const z = 10 + Math.random() * 30;
         
-        // Create a very large, bright highlight star
-        const highlightStarSize = 4.0;
+        // Create a bright highlight star (smaller on mobile but brighter)
+        const highlightStarSize = isMobileView ? 3.0 : 4.0; // Smaller on mobile but still prominent
         const highlightStarGeom = new THREE.SphereGeometry(highlightStarSize, 32, 32);
         const highlightStarMat = new THREE.MeshBasicMaterial({
             color: 0xFFFFFF,
             emissive: 0xFFFFFF,
-            emissiveIntensity: 1.0
+            emissiveIntensity: isMobileView ? 2.5 : 1.0 // Much brighter on mobile
         });
         
         const highlightStar = new THREE.Mesh(highlightStarGeom, highlightStarMat);
