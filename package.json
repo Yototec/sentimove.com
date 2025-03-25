@@ -1,0 +1,20 @@
+{
+  "name": "sentimove",
+  "version": "1.0.0",
+  "description": "SentiMove - Interactive blockchain sentiment visualization",
+  "scripts": {
+    "start": "node server/server.js",
+    "server": "cd server && npm run dev",
+    "client": "npx http-server ./public -p 8080",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install && cd server && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.1",
+    "http-server": "^14.1.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "private": true
+} 
