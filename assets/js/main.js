@@ -981,64 +981,40 @@ function createStarsForBlock(blockNumber) {
     });
 }
 
-// Function to transition between blocks
 function updateStarPositions() {
     if (!isTransitioning) return;
-
-    // Update transition progress
     transitionProgress += transitionSpeed;
-
     if (transitionProgress >= 1.0) {
-        // Transition complete
         transitionProgress = 1.0;
         isTransitioning = false;
         currentBlockIndex = targetBlockIndex;
-
-        // Clean up first - remove all existing objects
         starObjects.forEach(star => scene.remove(star));
         constellationLines.forEach(line => scene.remove(line));
         labelObjects.forEach(label => scene.remove(label));
-
         starObjects = [];
         constellationLines = [];
         labelObjects = [];
-
-        // Update with final positions
         createStarsForBlock(blockNumbers[currentBlockIndex]);
-
-        // Record the time when transition completed to delay constellation lines
         lastTransitionTime = Date.now();
         constellationLinesVisible = false;
-        lineAnimationStarted = false; // Reset line animation state
-
-        // Hide constellation lines immediately after transition
+        lineAnimationStarted = false;
         constellationLines.forEach(line => {
             line.visible = false;
         });
     } else {
-        // During transition - update positions without removing labels
-
-        // Remove constellation lines
         constellationLines.forEach(line => scene.remove(line));
         constellationLines = [];
-
-        // Keep existing stars but update their positions
         const currentBlock = blockData[blockNumbers[currentBlockIndex]];
         const targetBlock = blockData[blockNumbers[targetBlockIndex]];
-
-        // Safety check - if either block is missing data, abort transition
         if (!currentBlock || !targetBlock || currentBlock.length === 0 || targetBlock.length === 0) {
             console.error('Missing data in current or target block, aborting transition');
-            transitionProgress = 1.0; // Force transition to complete
+            transitionProgress = 1.0;
             isTransitioning = false;
             return;
         }
 
-        // Apply easing to the transition progress for smoother motion
         const easedProgress = easing.easeInOutCubic(transitionProgress);
 
-        // Calculate offset values for both current and target blocks
-        // Current block centering calculations
         let currentSumX = 0, currentSumY = 0;
         currentBlock.forEach(point => {
             currentSumX += point[3];
@@ -1050,7 +1026,6 @@ function updateStarPositions() {
         const currentOffsetX = currentAvgX - 0.5; // Target is 0.5 for center
         const currentOffsetY = currentAvgY - 0.0; // Target is 0.0 for center
 
-        // Target block centering calculations
         let targetSumX = 0, targetSumY = 0;
         targetBlock.forEach(point => {
             targetSumX += point[3];
@@ -1062,7 +1037,6 @@ function updateStarPositions() {
         const targetOffsetX = targetAvgX - 0.5; // Target is 0.5 for center
         const targetOffsetY = targetAvgY - 0.0; // Target is 0.0 for center
 
-        // Map stars by cluster group for easier matching
         const currentStarsByCluster = {};
         const targetStarsByCluster = {};
 
@@ -1082,58 +1056,44 @@ function updateStarPositions() {
             targetStarsByCluster[clusterGroup].push(point);
         });
 
-        // For each star object, find the corresponding position in target block
         starObjects.forEach((star, index) => {
             const clusterGroup = star.userData.clusterGroup;
 
-            // Get corresponding points from current and target blocks
             const currentPoints = currentStarsByCluster[clusterGroup];
             const targetPoints = targetStarsByCluster[clusterGroup];
 
             if (!currentPoints || !targetPoints) return;
 
-            // Match the star with corresponding point in current block
             let matchIndex = Math.min(index % currentPoints.length, currentPoints.length - 1);
             let currentPoint = currentPoints[matchIndex];
 
-            // Find corresponding point in target block
             let targetMatchIndex = Math.min(matchIndex, targetPoints.length - 1);
             let targetPoint = targetPoints[targetMatchIndex];
 
-            // Get current coordinates and apply current block's offset
             const currentX = currentPoint[3] - currentOffsetX;
             const currentY = currentPoint[4] - currentOffsetY;
 
-            // Get target coordinates and apply target block's offset
             const targetX = targetPoint[3] - targetOffsetX;
             const targetY = targetPoint[4] - targetOffsetY;
 
-            // Interpolate between coordinates using eased progress
             const interpX = currentX + (targetX - currentX) * easedProgress;
             const interpY = currentY + (targetY - currentY) * easedProgress;
 
-            // Convert interpolated coordinates to 3D position
             const longitude = interpX * Math.PI - Math.PI / 2;
             const latitude = interpY * Math.PI / 3;
 
-            // Update star position with smooth transition
             const newX = sphereRadius * Math.cos(latitude) * Math.sin(longitude);
             const newY = sphereRadius * Math.sin(latitude);
             const newZ = sphereRadius * Math.cos(latitude) * Math.cos(longitude);
 
             star.position.set(newX, newY, newZ);
 
-            // Add subtle color and size transitions based on cluster groups
-            // Only apply if the cluster groups are different
             if (currentPoint[5] !== targetPoint[5]) {
-                // Calculate colors for both current and target points
                 const currentHue = (parseInt(currentPoint[5]) * 50) % 360;
                 const targetHue = (parseInt(targetPoint[5]) * 50) % 360;
 
-                // Calculate interpolated hue
                 let interpHue = currentHue + (targetHue - currentHue) * easedProgress;
                 if (Math.abs(targetHue - currentHue) > 180) {
-                    // Take the shorter path around the color wheel
                     if (currentHue < targetHue) {
                         currentHue += 360;
                     } else {
@@ -1143,40 +1103,28 @@ function updateStarPositions() {
                     interpHue %= 360;
                 }
 
-                // Apply interpolated color
                 const interpColor = new THREE.Color(`hsl(${interpHue}, 100%, 80%)`);
                 star.material.color.copy(interpColor);
                 star.material.emissive.copy(interpColor);
 
-                // Subtle size pulse during transition
                 const pulseMultiplier = 1.0 + 0.15 * Math.sin(easedProgress * Math.PI);
                 const starSize = isMobileView ? 1.2 : 0.8;
                 star.scale.set(pulseMultiplier, pulseMultiplier, pulseMultiplier);
             }
         });
-
-        // During transitions, we'll let the lines update naturally in the animate loop
-        // and let the labels be completely recreated at the end of transition
     }
 }
 
 function createFallbackStars() {
-    // Create three stars (fallback if API fails)
     const star1 = new THREE.Mesh(starGeometry, starMaterial);
     const star2 = new THREE.Mesh(starGeometry, starMaterial);
     const star3 = new THREE.Mesh(starGeometry, starMaterial);
-
-    // Position the stars in front of the camera for better visibility
     star1.position.set(-sphereRadius / 4, sphereRadius / 5, sphereRadius / 2);
     star2.position.set(sphereRadius / 4, sphereRadius / 5, sphereRadius / 2);
     star3.position.set(0, -sphereRadius / 5, sphereRadius / 2);
-
-    // Add stars to the scene
     scene.add(star1);
     scene.add(star2);
     scene.add(star3);
-
-    // Create a line connecting the stars
     const lineGeometry = new THREE.BufferGeometry();
     const points = [
         star1.position,
@@ -1188,46 +1136,32 @@ function createFallbackStars() {
     const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ffff });
     const line = new THREE.Line(lineGeometry, lineMaterial);
     scene.add(line);
-
-    // Store references to stars for updating lines during zoom
     line.userData = {
         stars: [star1, star2, star3, star1]
     };
-
-    // Start animation
     animate = function () {
         requestAnimationFrame(animate);
-
-        // Smooth rotation transition with telescope-like dampening
         currentRotationX += (targetRotationX - currentRotationX) * 0.03;
         currentRotationY += (targetRotationY - currentRotationY) * 0.03;
-
-        // Update camera position based on rotation
         updateCameraPosition();
-
-        // Update line points if we've zoomed
         if (line.userData.stars) {
             const points = line.userData.stars.map(star => star.position);
             const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
             line.geometry.dispose();
             line.geometry = lineGeo;
         }
-
         renderer.render(scene, camera);
     };
-
     animate();
 }
 
-// Animation loop
 function animate() {
     requestAnimationFrame(animate);
     currentRotationX += (targetRotationX - currentRotationX) * 0.03;
     currentRotationY += (targetRotationY - currentRotationY) * 0.03;
     updateCameraPosition();
     updateStarPositions();
-    
-    // Update blinking effect
+
     blinkFactor += blinkSpeed * blinkDirection;
     if (blinkFactor >= 1) {
         blinkDirection = -1;
@@ -1235,7 +1169,7 @@ function animate() {
         blinkDirection = 1;
     }
     const currentBlinkIntensity = minBlinkIntensity + blinkFactor * (maxBlinkIntensity - minBlinkIntensity);
-    
+
     // Update star brightness
     starObjects.forEach(star => {
         if (star.material) {
@@ -1258,29 +1192,29 @@ function animate() {
     if (!lineAnimationStarted && !isTransitioning && Date.now() - lastTransitionTime >= constellationLineDelay) {
         lineAnimationStarted = true;
         constellationLinesVisible = true;
-        
+
         // Set up animation for each line with staggered start times grouped by cluster
         const clusterGroups = {};
-        
+
         // Group lines by cluster
         constellationLines.forEach(line => {
             if (line.userData.isLabelLine) return; // Skip label lines
-            
+
             const groupId = line.userData.clusterGroup;
             if (!groupId) return;
-            
+
             if (!clusterGroups[groupId]) {
                 clusterGroups[groupId] = [];
             }
             clusterGroups[groupId].push(line);
         });
-        
+
         // Set animation timing by cluster (parallel between clusters)
         let clusterIndex = 0;
         Object.keys(clusterGroups).forEach(groupId => {
             const clusterLines = clusterGroups[groupId];
             const clusterStartTime = Date.now() + clusterIndex * lineRevealInterClusterDelay;
-            
+
             // Assign start times to lines within this cluster
             clusterLines.forEach((line, lineIndex) => {
                 line.userData.startTime = clusterStartTime + lineIndex * lineRevealIntraClusterDelay;
@@ -1288,10 +1222,10 @@ function animate() {
                 line.userData.progress = 0;
                 line.visible = false; // Will be made visible when animation starts
             });
-            
+
             clusterIndex++;
         });
-        
+
         // Handle any lines without cluster assignment (fallback)
         constellationLines.forEach(line => {
             if (line.userData.isLabelLine) {
@@ -1306,30 +1240,30 @@ function animate() {
             }
         });
     }
-    
+
     // Animate constellation lines
     if (lineAnimationStarted) {
         const currentTime = Date.now();
         let allLinesAnimated = true;
-        
+
         constellationLines.forEach(line => {
             if (line.userData.isLabelLine) return; // Skip label lines
-            
+
             if (!line.userData.animated) {
                 if (line.userData.startTime && currentTime >= line.userData.startTime) {
                     // Start animation for this line
                     line.visible = true;
-                    
+
                     // Update line progress with faster speed
                     line.userData.progress += lineGrowthSpeedFast;
-                    
+
                     if (line.userData.progress >= 1) {
                         line.userData.progress = 1;
                         line.userData.animated = true;
                     } else {
                         allLinesAnimated = false;
                     }
-                    
+
                     // Animate line by growing it from start to end
                     if (line.userData.fromStar && line.userData.toStar) {
                         const start = line.userData.fromStar.position;
@@ -1337,7 +1271,7 @@ function animate() {
                         const middle = new THREE.Vector3().lerpVectors(
                             start, end, line.userData.progress
                         );
-                        
+
                         // Create a new line geometry that grows from start to current point
                         const lineGeo = new THREE.BufferGeometry().setFromPoints([
                             start, middle
