@@ -832,26 +832,17 @@ function createStarsForBlock(blockNumber) {
                     linewidth: 0.2
                 });
                 const labelLine = new THREE.Line(lineGeometry, lineMaterial);
-
-                // Store references for animation updates
                 labelLine.userData.startPoint = centerOfMass;
                 labelLine.userData.endPoint = labelPosition;
                 labelLine.userData.isLabelLine = true;
                 labelLine.userData.baseOpacity = 0.2; // Store base opacity for blinking
-
-                // Add label and line to scene
                 scene.add(label);
                 scene.add(labelLine);
                 constellationLines.push(labelLine);
                 labelObjects.push(label); // Track the label
             }
         }
-
-        // Skip creating connections if there's only 1 star in the group
         if (groupStars.length <= 1) return;
-
-        // Create a constellation-like pattern using a simple minimum spanning tree algorithm
-        // First, calculate all possible edges and their distances
         const edges = [];
         for (let i = 0; i < groupStars.length; i++) {
             for (let j = i + 1; j < groupStars.length; j++) {
@@ -863,62 +854,41 @@ function createStarsForBlock(blockNumber) {
                 });
             }
         }
-
-        // Sort edges by distance (shortest first)
         edges.sort((a, b) => a.distance - b.distance);
-
-        // Create a disjoint-set data structure for Kruskal's algorithm
         const parent = {};
         for (let i = 0; i < groupStars.length; i++) {
             parent[i] = i;
         }
-
-        // Find function for disjoint-set
         const find = (i) => {
             if (parent[i] !== i) {
                 parent[i] = find(parent[i]);
             }
             return parent[i];
         };
-
-        // Union function for disjoint-set
         const union = (i, j) => {
             parent[find(i)] = find(j);
         };
-
-        // Apply Kruskal's algorithm to find minimum spanning tree
         const mstEdges = [];
         for (const edge of edges) {
             const fromRoot = find(edge.from);
             const toRoot = find(edge.to);
-
-            // If including this edge doesn't create a cycle
             if (fromRoot !== toRoot) {
                 mstEdges.push(edge);
                 union(edge.from, edge.to);
-
-                // If we've added enough edges to form a spanning tree, stop
                 if (mstEdges.length === groupStars.length - 1) {
                     break;
                 }
             }
         }
-
-        // Create the constellation lines using the minimum spanning tree
         for (const edge of mstEdges) {
             const fromStar = groupStars[edge.from];
             const toStar = groupStars[edge.to];
-
-            // Create a line between the two stars
             const constellationLineGeo = new THREE.BufferGeometry().setFromPoints([
                 fromStar.position,
                 toStar.position
             ]);
 
-            // Base opacity for constellation lines
             const baseOpacity = isMobileView ? 1.0 : 0.8;
-
-            // Make lines more colorful by using more saturated colors
             const constellationLineMat = new THREE.LineBasicMaterial({
                 color: new THREE.Color(`hsl(${hue}, 100%, 60%)`), // More saturated color for lines
                 opacity: baseOpacity, // More visible lines on desktop too
