@@ -46,7 +46,7 @@ vignetteContainer.style.zIndex = '10';
 document.body.appendChild(vignetteContainer);
 
 const starGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-const starMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+const starMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, emissive: 0xFFFFFF, emissiveIntensity: 2.0 });
 
 let mouseX = 0;
 let mouseY = 0;
@@ -803,16 +803,17 @@ function createStarsForBlock(blockNumber) {
 
         // Calculate star color based on cluster group - same calculation as used for constellation lines
         const hue = (parseInt(clusterGroup) * 50) % 360;
-        const starColor = new THREE.Color(`hsl(${hue}, 100%, 90%)`);
+        // Use 100% saturation and high lightness for more vibrant stars
+        const starColor = new THREE.Color(`hsl(${hue}, 100%, 80%)`);
 
         // Make stars smaller but brighter on mobile
-        const starSize = isMobileView ? 0.8 : 0.5; // Smaller stars on mobile but still larger than desktop
+        const starSize = isMobileView ? 1.2 : 0.8; // Increased size for both desktop and mobile
         const mobileStarGeometry = new THREE.SphereGeometry(starSize, isMobileView ? 16 : 32, isMobileView ? 16 : 32);
 
         const star = new THREE.Mesh(mobileStarGeometry, new THREE.MeshBasicMaterial({
             color: starColor,
             emissive: starColor,
-            emissiveIntensity: isMobileView ? 10.0 : 0.5 // Higher brightness on mobile (increased from 6.0 to 10.0)
+            emissiveIntensity: isMobileView ? 15.0 : 4.0 // Higher brightness on both mobile and desktop
         }));
 
         // Position stars on the inside of a sphere
@@ -1030,11 +1031,13 @@ function createStarsForBlock(blockNumber) {
                 fromStar.position,
                 toStar.position
             ]);
+            
+            // Make lines more colorful by using more saturated colors
             const constellationLineMat = new THREE.LineBasicMaterial({
-                color: color,
-                opacity: isMobileView ? 1.0 : 0.2, // More visible lines on mobile
+                color: new THREE.Color(`hsl(${hue}, 100%, 60%)`), // More saturated color for lines
+                opacity: isMobileView ? 1.0 : 0.8, // More visible lines on desktop too
                 transparent: true,
-                linewidth: isMobileView ? 3.0 : 0.2 // Thicker lines on mobile (increased from 2.0 to 3.0)
+                linewidth: isMobileView ? 3.0 : 1.0 // Thicker lines on desktop too
             });
             const constellationLine = new THREE.Line(constellationLineGeo, constellationLineMat);
             scene.add(constellationLine);
@@ -1265,13 +1268,13 @@ function updateStarPositions() {
                 }
 
                 // Apply interpolated color
-                const interpColor = new THREE.Color(`hsl(${interpHue}, 100%, 90%)`);
+                const interpColor = new THREE.Color(`hsl(${interpHue}, 100%, 80%)`);
                 star.material.color.copy(interpColor);
                 star.material.emissive.copy(interpColor);
 
                 // Subtle size pulse during transition
                 const pulseMultiplier = 1.0 + 0.15 * Math.sin(easedProgress * Math.PI);
-                const starSize = isMobileView ? 0.8 : 0.5;
+                const starSize = isMobileView ? 1.2 : 0.8;
                 star.scale.set(pulseMultiplier, pulseMultiplier, pulseMultiplier);
             }
         });
@@ -1468,11 +1471,14 @@ function createEmergencyFallbackStars() {
     // Create some guaranteed visible stars
     const numStars = 20;
     const colors = [
-        0xFF5555, // Red
-        0x55FF55, // Green
-        0x5555FF, // Blue
-        0xFFFF55, // Yellow
-        0xFF55FF  // Purple
+        0xFF3333, // Bright Red
+        0x33FF33, // Bright Green
+        0x3333FF, // Bright Blue
+        0xFFFF33, // Bright Yellow
+        0xFF33FF, // Bright Magenta
+        0x33FFFF, // Bright Cyan
+        0xFF6600, // Bright Orange
+        0x9900FF  // Bright Purple
     ];
 
     // Create stars in a more visible pattern for guaranteed visibility
@@ -1484,8 +1490,8 @@ function createEmergencyFallbackStars() {
         const y = Math.sin(angle) * radius;
         const z = 30; // Place closer to camera for visibility
 
-        // Smaller but brighter stars for visibility
-        const starSize = isMobileView ? 2.0 : 1.5; // Reduced size for mobile but still easily visible
+        // Bigger and brighter stars for visibility
+        const starSize = isMobileView ? 3.0 : 2.5; // Increased size for both mobile and desktop
         const starGeom = new THREE.SphereGeometry(starSize, 16, 16);
 
         // Use a variety of bright colors
@@ -1493,7 +1499,7 @@ function createEmergencyFallbackStars() {
         const starMat = new THREE.MeshBasicMaterial({
             color: color,
             emissive: color,
-            emissiveIntensity: isMobileView ? 12.0 : 1.0 // Increased brightness on mobile (from 7.0 to 12.0)
+            emissiveIntensity: isMobileView ? 20.0 : 5.0 // Increased brightness for both
         });
 
         const star = new THREE.Mesh(starGeom, starMat);
@@ -1503,14 +1509,14 @@ function createEmergencyFallbackStars() {
         starObjects.push(star);
 
         // Add a point light at the star position for additional visibility
-        if (i < 5) { // Only add a few lights to avoid performance issues
-            const light = new THREE.PointLight(color, 1, 100);
+        if (i < 8) { // Increased number of lights for more brightness
+            const light = new THREE.PointLight(color, 2, 100); // Doubled light intensity
             light.position.copy(star.position);
             scene.add(light);
         }
     }
 
-    // Create connections between stars
+    // Create connections between stars with more vibrant colors
     for (let i = 0; i < starObjects.length - 1; i++) {
         const fromStar = starObjects[i];
         const toStar = starObjects[i + 1];
@@ -1520,8 +1526,11 @@ function createEmergencyFallbackStars() {
             toStar.position
         ]);
 
+        // Use the same color as the corresponding star for the line
+        const starColor = fromStar.material.color.clone();
+        
         const lineMaterial = new THREE.LineBasicMaterial({
-            color: 0xFFFFFF,
+            color: starColor,
             opacity: 1.0,
             transparent: false,
             linewidth: 2.0
@@ -1530,7 +1539,8 @@ function createEmergencyFallbackStars() {
         const line = new THREE.Line(lineGeometry, lineMaterial);
         scene.add(line);
         constellationLines.push(line);
-
+        
+        // Store references to connected stars for updating lines during zoom
         line.userData = {
             fromStar: fromStar,
             toStar: toStar
@@ -1546,11 +1556,11 @@ function createEmergencyFallbackStars() {
     // Create some emergency labels
     const emergencyClusterNames = ["Alpha Cluster", "Beta Cluster", "Gamma Cluster", "Delta Cluster", "Omega Cluster"];
     const emergencyColors = [
-        0xFF5555, // Red
-        0x55FF55, // Green
-        0x5555FF, // Blue
-        0xFFFF55, // Yellow
-        0xFF55FF  // Purple
+        0xFF3333, // Bright Red
+        0x33FF33, // Bright Green
+        0x3333FF, // Bright Blue
+        0xFFFF33, // Bright Yellow
+        0xFF33FF  // Bright Magenta
     ];
 
     // Add emergency cluster labels
@@ -1614,13 +1624,13 @@ function createEmergencyFallbackStars() {
         const y = Math.sin(angle) * distance;
         const z = 10 + Math.random() * 30;
 
-        // Create a bright highlight star (smaller on mobile but brighter)
-        const highlightStarSize = isMobileView ? 3.0 : 4.0; // Smaller on mobile but still prominent
+        // Create a bright highlight star (larger and brighter on both mobile and desktop)
+        const highlightStarSize = isMobileView ? 4.0 : 5.0; // Increased size for both
         const highlightStarGeom = new THREE.SphereGeometry(highlightStarSize, 32, 32);
         const highlightStarMat = new THREE.MeshBasicMaterial({
             color: 0xFFFFFF,
             emissive: 0xFFFFFF,
-            emissiveIntensity: isMobileView ? 15.0 : 1.0 // Much brighter on mobile (increased from 8.0 to 15.0)
+            emissiveIntensity: isMobileView ? 20.0 : 5.0 // Increased brightness for both
         });
 
         const highlightStar = new THREE.Mesh(highlightStarGeom, highlightStarMat);
