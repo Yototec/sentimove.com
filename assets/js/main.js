@@ -549,6 +549,9 @@ toggleButton.addEventListener('click', () => {
     isFirstPlaythrough = false; // User has clicked the toggle, so disable first playthrough behavior
 
     if (isAutoPlaying) {
+        // Start from current slider position instead of continuing from previous position
+        targetBlockIndex = parseInt(slider.value);
+        currentBlockIndex = targetBlockIndex;
         currentAutoplaySpeed = normalAutoplaySpeed; // Always use normal speed after user interaction
         updateSpeedIndicator(); // Update speed indicator when speed changes
         startAutoplayTimer();
