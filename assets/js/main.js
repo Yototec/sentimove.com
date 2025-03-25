@@ -1,14 +1,10 @@
-// Initialize the scene
 const scene = new THREE.Scene();
 
-// Mobile detection
 let isMobileView = window.innerWidth < 768;
 console.log("Initial mobile detection:", isMobileView, "Width:", window.innerWidth);
 
-// Create a virtual sphere for star placement
 const sphereRadius = 100;
 
-// Set up camera with wider FOV for mobile
 const camera = new THREE.PerspectiveCamera(
     isMobileView ? 45 : 30, // Higher FOV on mobile for wider view
     window.innerWidth / window.innerHeight,
@@ -16,35 +12,27 @@ const camera = new THREE.PerspectiveCamera(
     1000
 );
 
-// Camera distance controls
-// Calculate optimal distance to view the entire sphere
 const fovRadians = camera.fov * (Math.PI / 180);
-// Calculate horizontal FOV based on aspect ratio
 const aspectRatio = window.innerWidth / window.innerHeight;
 const horizontalFovRadians = 2 * Math.atan(Math.tan(fovRadians / 2) * aspectRatio);
-// Use the smaller of the two FOVs to ensure the sphere fits in both dimensions
 const effectiveFovRadians = Math.min(fovRadians, horizontalFovRadians);
 const safetyMargin = 1.2; // 20% extra margin to ensure all stars are visible
 let cameraDistance = (sphereRadius / Math.sin(effectiveFovRadians / 2)) * safetyMargin * 1.2;
-// Mobile devices need to be closer to see stars better
 if (isMobileView) {
     cameraDistance *= 0.7; // Move camera much closer on mobile
 }
 const minDistance = cameraDistance * 0.8;
 const maxDistance = cameraDistance * 1.2;
 
-// Position camera at the calculated distance
 camera.position.z = cameraDistance;
 camera.position.y = 0;
 camera.position.x = 0;
 camera.lookAt(0, 0, 0); // Look at the center of the sphere
 
-// Set up renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Create telescope vignette effect
 const vignetteContainer = document.createElement('div');
 vignetteContainer.style.position = 'absolute';
 vignetteContainer.style.top = '0';
@@ -57,11 +45,9 @@ vignetteContainer.style.boxShadow = 'inset 0 0 150px 150px rgba(0, 0, 0, 0.95)';
 vignetteContainer.style.zIndex = '10';
 document.body.appendChild(vignetteContainer);
 
-// Create star material and geometry
 const starGeometry = new THREE.SphereGeometry(0.5, 32, 32);
 const starMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
 
-// Set up mouse rotation for telescope aiming
 let mouseX = 0;
 let mouseY = 0;
 let targetRotationX = 0;
@@ -75,9 +61,7 @@ let isMouseDragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
-// Handle mouse drag for desktop (replacing mouse movement)
 document.addEventListener('mousedown', (event) => {
-    // Skip if the mouse is on slider or slider container
     if (event.target.closest('.toggle-button') || event.target === slider || event.target.closest('#sliderContainer')) return;
 
     isMouseDragging = true;
@@ -88,17 +72,14 @@ document.addEventListener('mousedown', (event) => {
 
 document.addEventListener('mousemove', (event) => {
     if (isMouseDragging) {
-        // Calculate mouse delta
         const mouseX = event.clientX;
         const mouseY = event.clientY;
         const deltaX = mouseX - lastMouseX;
         const deltaY = mouseY - lastMouseY;
 
-        // Update last mouse position
         lastMouseX = mouseX;
         lastMouseY = mouseY;
 
-        // Adjust rotation based on mouse movement with similar sensitivity to touch
         targetRotationY -= deltaX * 0.01;
         targetRotationX -= deltaY * 0.01;
     }
@@ -116,16 +97,13 @@ document.addEventListener('mouseleave', () => {
     }
 });
 
-// Initialize cursor style
 document.addEventListener('DOMContentLoaded', () => {
     if (!isMobileView) {
         document.body.style.cursor = 'grab'; // Set initial cursor style for desktop
     }
 });
 
-// Handle touch events for mobile
 document.addEventListener('touchstart', (event) => {
-    // Skip if the touch is on the slider, toggle button, or cluster labels container
     if (event.target.closest('.cluster-labels-container') ||
         event.target.closest('.toggle-button') ||
         event.target === slider ||
@@ -139,28 +117,20 @@ document.addEventListener('touchstart', (event) => {
 }, { passive: true });
 
 document.addEventListener('touchmove', (event) => {
-    // Skip if the touch is on the slider, toggle button, or cluster labels container
     if (event.target.closest('.cluster-labels-container') ||
         event.target.closest('.toggle-button') ||
         event.target === slider ||
         event.target.closest('#sliderContainer')) return;
 
     if (isTouching && event.touches.length === 1) {
-        // Calculate touch delta
         const touchX = event.touches[0].clientX;
         const touchY = event.touches[0].clientY;
         const deltaX = touchX - lastTouchX;
         const deltaY = touchY - lastTouchY;
-
-        // Update last touch position
         lastTouchX = touchX;
         lastTouchY = touchY;
-
-        // Adjust rotation based on touch movement with increased sensitivity for mobile
         targetRotationY -= deltaX * 0.01;
         targetRotationX -= deltaY * 0.01;
-
-        // Prevent scrolling while interacting with the visualization
         event.preventDefault();
     }
 }, { passive: false });
@@ -169,7 +139,6 @@ document.addEventListener('touchend', () => {
     isTouching = false;
 }, { passive: true });
 
-// Add pinch zoom support for mobile
 let initialPinchDistance = 0;
 
 document.addEventListener('touchstart', (event) => {
@@ -183,16 +152,12 @@ document.addEventListener('touchmove', (event) => {
         const currentDistance = getPinchDistance(event);
         const delta = currentDistance - initialPinchDistance;
 
-        // Update camera distance with pinch
         cameraDistance = Math.max(minDistance, Math.min(maxDistance, cameraDistance - delta * 0.1));
 
-        // Update initial distance for next move event
         initialPinchDistance = currentDistance;
 
-        // Update camera position
         updateCameraPosition();
 
-        // Prevent default to avoid zooming the page
         event.preventDefault();
     }
 }, { passive: false });
