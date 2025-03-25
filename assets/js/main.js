@@ -687,7 +687,7 @@ function createStarsForBlock(blockNumber) {
         const mobileStarGeometry = new THREE.SphereGeometry(starSize, isMobileView ? 16 : 32, isMobileView ? 16 : 32);
 
         const baseEmissiveIntensity = isMobileView ? 15.0 : 4.0; // Higher brightness on both mobile and desktop
-        
+
         const star = new THREE.Mesh(mobileStarGeometry, new THREE.MeshBasicMaterial({
             color: starColor,
             emissive: starColor,
@@ -914,10 +914,10 @@ function createStarsForBlock(blockNumber) {
                 fromStar.position,
                 toStar.position
             ]);
-            
+
             // Base opacity for constellation lines
             const baseOpacity = isMobileView ? 1.0 : 0.8;
-            
+
             // Make lines more colorful by using more saturated colors
             const constellationLineMat = new THREE.LineBasicMaterial({
                 color: new THREE.Color(`hsl(${hue}, 100%, 60%)`), // More saturated color for lines
@@ -1233,47 +1233,33 @@ function createFallbackStars() {
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
-
-    // Smooth rotation transition with telescope-like dampening
     currentRotationX += (targetRotationX - currentRotationX) * 0.03;
     currentRotationY += (targetRotationY - currentRotationY) * 0.03;
-
-    // Update camera position based on rotation
     updateCameraPosition();
-
-    // Update star positions for block transition
     updateStarPositions();
-
-    // Calculate blinking effect
     blinkFactor += blinkSpeed * blinkDirection;
     if (blinkFactor >= 1) {
         blinkDirection = -1;
     } else if (blinkFactor <= 0) {
         blinkDirection = 1;
     }
-    
-    // Apply blinking to stars and constellation lines
     const currentBlinkIntensity = minBlinkIntensity + blinkFactor * (maxBlinkIntensity - minBlinkIntensity);
-    
-    // Make stars blink
     starObjects.forEach(star => {
         if (star.material) {
-            star.material.emissiveIntensity = star.userData.baseEmissiveIntensity 
+            star.material.emissiveIntensity = star.userData.baseEmissiveIntensity
                 ? star.userData.baseEmissiveIntensity * currentBlinkIntensity
                 : (isMobileView ? 15.0 : 4.0) * currentBlinkIntensity;
         }
     });
-    
-    // Make constellation lines blink by changing opacity
+
     constellationLines.forEach(line => {
         if (line.material && line.visible) {
-            line.material.opacity = line.userData.baseOpacity 
+            line.material.opacity = line.userData.baseOpacity
                 ? line.userData.baseOpacity * currentBlinkIntensity
                 : (isMobileView ? 1.0 : 0.8) * currentBlinkIntensity;
         }
     });
 
-    // Check if it's time to show constellation lines
     if (!constellationLinesVisible && !isTransitioning && Date.now() - lastTransitionTime >= constellationLineDelay) {
         constellationLinesVisible = true;
         constellationLines.forEach(line => {
@@ -1281,10 +1267,8 @@ function animate() {
         });
     }
 
-    // Update constellation lines
     scene.traverse(object => {
         if (object instanceof THREE.Line) {
-            // Only update visible lines to save performance
             if (constellationLinesVisible && object.visible) {
                 if (object.userData.fromStar && object.userData.toStar) {
                     const lineGeo = new THREE.BufferGeometry().setFromPoints([
@@ -1316,37 +1300,27 @@ function animate() {
     }
 }
 
-// Function to update slider container width and handle mobile view changes
 function updateSliderContainerWidth() {
-    // Update mobile flag
     const wasMobile = isMobileView;
     isMobileView = window.innerWidth < 768;
     sliderContainer.style.width = isMobileView ? '100%' : '50%';
-
-    // Update cluster labels position
     updateClusterLabelsPosition();
-
     if (wasMobile !== isMobileView) {
         console.log("Mobile state changed in updateSliderContainerWidth:", isMobileView, "Width:", window.innerWidth);
-
-        // Recreate stars after a delay to ensure proper screen measurements
         setTimeout(() => {
             if (currentBlockIndex >= 0 && blockNumbers.length > 0) {
                 createStarsForBlock(blockNumbers[currentBlockIndex]);
             } else {
-                // If no blocks are loaded, use emergency fallback
                 createEmergencyFallbackStars();
             }
         }, 500);
     } else {
-        // If we're not in a transition, recreate stars with or without labels
         if (!isTransitioning && currentBlockIndex >= 0 && blockNumbers.length > 0) {
             createStarsForBlock(blockNumbers[currentBlockIndex]);
         }
     }
 }
 
-// Debugging function - call this if no stars are visible
 function debugVisibility() {
     console.log("Debug visibility called");
     console.log("Mobile view:", isMobileView, "Window width:", window.innerWidth);
@@ -1354,37 +1328,25 @@ function debugVisibility() {
     console.log("Camera distance:", cameraDistance);
     console.log("Star objects:", starObjects.length);
     console.log("Constellation lines:", constellationLines.length);
-
-    // Force recreation of stars with extreme visibility settings
     if (starObjects.length === 0 && blockNumbers.length > 0) {
         console.log("No stars found, forcing creation");
         createStarsForBlock(blockNumbers[currentBlockIndex]);
     }
 }
 
-// Call debug visibility after a short delay to check if stars are created
 setTimeout(debugVisibility, 5000);
 
-// Add resize event listener to handle screen size changes
 window.addEventListener('resize', updateSliderContainerWidth);
 
-// Emergency fallback function to ensure stars are visible on mobile
 function createEmergencyFallbackStars() {
     console.log("Creating emergency fallback stars for mobile");
-
-    // Remove any existing objects
     starObjects.forEach(star => scene.remove(star));
     constellationLines.forEach(line => scene.remove(line));
     labelObjects.forEach(label => scene.remove(label));
-
-    // Clear cluster labels container
     clusterLabelsContainer.innerHTML = '';
-
     starObjects = [];
     constellationLines = [];
     labelObjects = [];
-
-    // Create some guaranteed visible stars
     const numStars = 20;
     const colors = [
         0xFF3333, // Bright Red
@@ -1413,7 +1375,7 @@ function createEmergencyFallbackStars() {
         // Use a variety of bright colors
         const color = colors[i % colors.length];
         const baseEmissiveIntensity = isMobileView ? 20.0 : 5.0; // Increased brightness for both
-        
+
         const starMat = new THREE.MeshBasicMaterial({
             color: color,
             emissive: color,
@@ -1444,11 +1406,8 @@ function createEmergencyFallbackStars() {
             fromStar.position,
             toStar.position
         ]);
-
-        // Use the same color as the corresponding star for the line
         const starColor = fromStar.material.color.clone();
         const baseOpacity = 1.0;
-        
         const lineMaterial = new THREE.LineBasicMaterial({
             color: starColor,
             opacity: baseOpacity,
@@ -1459,8 +1418,6 @@ function createEmergencyFallbackStars() {
         const line = new THREE.Line(lineGeometry, lineMaterial);
         scene.add(line);
         constellationLines.push(line);
-        
-        // Store references to connected stars for updating lines during zoom
         line.userData = {
             fromStar: fromStar,
             toStar: toStar,
@@ -1469,12 +1426,8 @@ function createEmergencyFallbackStars() {
     }
 
     console.log(`Created ${starObjects.length} emergency stars and ${constellationLines.length} lines`);
-
-    // Move camera closer for emergency stars
     cameraDistance = 50;
     updateCameraPosition();
-
-    // Create some emergency labels
     const emergencyClusterNames = ["Alpha Cluster", "Beta Cluster", "Gamma Cluster", "Delta Cluster", "Omega Cluster"];
     const emergencyColors = [
         0xFF3333, // Bright Red
@@ -1484,7 +1437,6 @@ function createEmergencyFallbackStars() {
         0xFF33FF  // Bright Magenta
     ];
 
-    // Add emergency cluster labels
     emergencyColors.forEach((color, index) => {
         if (index < emergencyClusterNames.length) {
             const labelContainer = document.createElement('div');
@@ -1493,8 +1445,6 @@ function createEmergencyFallbackStars() {
             labelContainer.style.margin = '2px 0'; // Remove horizontal margin for left alignment
             labelContainer.style.padding = '4px 0';
             labelContainer.style.width = '100%';
-
-            // Create colored bullet point
             const bullet = document.createElement('span');
             bullet.style.display = 'inline-block';
             bullet.style.width = '12px';
@@ -1504,8 +1454,6 @@ function createEmergencyFallbackStars() {
             bullet.style.marginRight = '10px'; // Increase spacing between bullet and text
             bullet.style.boxShadow = '0 0 3px rgba(255, 255, 255, 0.5)';
             bullet.style.flexShrink = '0'; // Prevent bullet from shrinking
-
-            // Create text label
             const text = document.createElement('span');
             text.style.color = 'white';
             text.style.fontSize = '14px'; // Increase font size
@@ -1515,37 +1463,27 @@ function createEmergencyFallbackStars() {
             text.style.textOverflow = 'ellipsis';
             text.style.whiteSpace = 'nowrap';
             text.style.flexGrow = '1'; // Allow text to take remaining space
-
-            // Use different text wrapping properties based on view
             if (isMobileView) {
-                // Allow text to wrap on mobile
                 text.style.whiteSpace = 'normal';
                 text.style.wordBreak = 'break-word';
                 text.style.lineHeight = '1.3';
             } else {
-                // Keep as ellipsis on desktop
                 text.style.textOverflow = 'ellipsis';
                 text.style.whiteSpace = 'nowrap';
             }
-
             text.textContent = emergencyClusterNames[index];
-
-            // Add to container
             labelContainer.appendChild(bullet);
             labelContainer.appendChild(text);
             clusterLabelsContainer.appendChild(labelContainer);
         }
     });
 
-    // Add some special highlight stars
     for (let i = 0; i < 5; i++) {
         const angle = Math.random() * Math.PI * 2;
         const distance = 10 + Math.random() * 20;
         const x = Math.cos(angle) * distance;
         const y = Math.sin(angle) * distance;
         const z = 10 + Math.random() * 30;
-
-        // Create a bright highlight star (larger and brighter on both mobile and desktop)
         const highlightStarSize = isMobileView ? 4.0 : 5.0; // Increased size for both
         const highlightStarGeom = new THREE.SphereGeometry(highlightStarSize, 32, 32);
         const highlightStarMat = new THREE.MeshBasicMaterial({
@@ -1562,12 +1500,8 @@ function createEmergencyFallbackStars() {
     }
 }
 
-// Add a mobile-specific forced visibility check
 if (isMobileView) {
-    // For mobile devices, force visibility checks at specific intervals
-    // This is a safeguard to ensure something is always visible
     const checkVisibilityIntervals = [1000, 3000, 7000];
-
     checkVisibilityIntervals.forEach(interval => {
         setTimeout(() => {
             if (starObjects.length === 0) {
@@ -1580,11 +1514,8 @@ if (isMobileView) {
     });
 }
 
-// When document is fully loaded, force a visibility check
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM loaded, checking visibility");
-
-    // Force recreation after DOM is loaded to ensure proper rendering on mobile
     setTimeout(() => {
         if (starObjects.length === 0 && blockNumbers.length > 0) {
             console.log("DOM loaded but no stars, recreating");
@@ -1596,16 +1527,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1500);
 });
 
-// Function to update cluster labels position based on mobile view
 function updateClusterLabelsPosition() {
-    // Show on mobile, hide on desktop
     clusterLabelsContainer.style.display = isMobileView ? 'flex' : 'none';
-
-    // Adjust position and height for mobile
     clusterLabelsContainer.style.bottom = isMobileView ? '110px' : '100px';
     clusterLabelsContainer.style.maxHeight = isMobileView ? '100px' : '80px'; // Give more room on mobile
-
-    // For mobile view: set width to 80% and center it
     if (isMobileView) {
         clusterLabelsContainer.style.width = '75%'; // Slightly smaller width to make room for the scrollbar
         clusterLabelsContainer.style.left = '5%'; // 5% on each side centers it
@@ -1613,17 +1538,12 @@ function updateClusterLabelsPosition() {
         clusterLabelsContainer.style.borderRadius = '8px'; // Add rounded corners for better mobile appearance
         clusterLabelsContainer.style.pointerEvents = 'auto'; // Ensure touch events are captured
         clusterLabelsContainer.style.paddingRight = '5px'; // Add padding to the right for the scrollbar
-
-        // Remove vertical border stripe
         clusterLabelsContainer.style.borderRight = 'none';
-
-        // Remove drag indicator if it exists
         const dragIndicator = document.getElementById('scroll-drag-indicator');
         if (dragIndicator) {
             dragIndicator.style.display = 'none';
         }
 
-        // Update scrollbar styling
         updateScrollbarStyle();
     } else {
         clusterLabelsContainer.style.width = '100%';
@@ -1631,7 +1551,6 @@ function updateClusterLabelsPosition() {
         clusterLabelsContainer.style.right = 'auto';
         clusterLabelsContainer.style.borderRight = 'none'; // Remove scrollbar indicator when not on mobile
 
-        // Remove drag indicator when on desktop
         const dragIndicator = document.getElementById('scroll-drag-indicator');
         if (dragIndicator) {
             dragIndicator.style.display = 'none';
@@ -1639,17 +1558,14 @@ function updateClusterLabelsPosition() {
     }
 }
 
-// Function to create or update the scroll drag indicator
 function createOrUpdateScrollDragIndicator() {
     let dragIndicator = document.getElementById('scroll-drag-indicator');
 
     if (!dragIndicator) {
-        // Create the drag indicator element
         dragIndicator = document.createElement('div');
         dragIndicator.id = 'scroll-drag-indicator';
         dragIndicator.innerHTML = '<div></div><div></div><div></div>'; // Three lines to indicate draggable
 
-        // Style the drag indicator
         dragIndicator.style.position = 'absolute';
         dragIndicator.style.right = '5px';
         dragIndicator.style.top = '50%';
@@ -1667,7 +1583,6 @@ function createOrUpdateScrollDragIndicator() {
         dragIndicator.style.zIndex = '25';
         dragIndicator.style.pointerEvents = 'none'; // Let touch events pass through to the scrollbar
 
-        // Style the three lines inside the indicator
         for (const div of dragIndicator.children) {
             div.style.width = '8px';
             div.style.height = '2px';
@@ -1677,30 +1592,21 @@ function createOrUpdateScrollDragIndicator() {
 
         document.body.appendChild(dragIndicator);
     }
-
-    // Position the drag indicator alongside the cluster labels container
     const containerRect = clusterLabelsContainer.getBoundingClientRect();
     dragIndicator.style.display = 'flex';
-
-    // Update position based on the cluster labels container's dimensions
     dragIndicator.style.height = Math.min(36, containerRect.height / 2) + 'px';
-    // Position it vertically centered on the right edge of the container
     dragIndicator.style.top = (containerRect.top + containerRect.height / 2) + 'px';
     dragIndicator.style.right = (window.innerWidth - containerRect.right + 4) + 'px';
 }
 
-// Listen for scroll events to reposition the drag indicator
 clusterLabelsContainer.addEventListener('scroll', () => {
     if (isMobileView) {
         requestAnimationFrame(() => {
             const dragIndicator = document.getElementById('scroll-drag-indicator');
             if (dragIndicator) {
-                // Adjust indicator position based on scroll percentage
                 const containerRect = clusterLabelsContainer.getBoundingClientRect();
                 const scrollPercent = clusterLabelsContainer.scrollTop /
                     (clusterLabelsContainer.scrollHeight - clusterLabelsContainer.clientHeight);
-
-                // Move the indicator down as scrolling progresses, but keep it within container bounds
                 const maxOffset = containerRect.height - parseFloat(dragIndicator.style.height) - 10;
                 const minOffset = 5;
                 const offsetY = minOffset + scrollPercent * maxOffset;
@@ -1711,5 +1617,4 @@ clusterLabelsContainer.addEventListener('scroll', () => {
     }
 });
 
-// Initialize labels position based on current view
 updateClusterLabelsPosition();
