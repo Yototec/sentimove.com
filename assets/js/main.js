@@ -1363,18 +1363,6 @@ function animate() {
     currentRotationX += (targetRotationX - currentRotationX) * 0.03;
     currentRotationY += (targetRotationY - currentRotationY) * 0.03;
 
-    // Apply a subtle camera movement during transitions
-    if (isTransitioning) {
-        // Add a gentle camera sway during transitions
-        const swayAmount = 0.02;
-        const swaySpeed = 2.0;
-        const sway = Math.sin(transitionProgress * Math.PI * swaySpeed) * swayAmount * (1.0 - transitionProgress);
-        
-        // Apply subtle adjustments to target rotations during transition
-        targetRotationX += sway;
-        targetRotationY += sway * 0.5;
-    }
-
     // Update camera position based on rotation
     updateCameraPosition();
 
