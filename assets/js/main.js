@@ -286,10 +286,22 @@ let blockData = {};
 let currentBlockIndex = 0;
 let targetBlockIndex = 0;
 let transitionProgress = 1.0; // Start at 1.0 to immediately show first block
-let transitionSpeed = 0.02; // Speed of transition between blocks
+let transitionSpeed = 0.015; // Reduced from 0.02 for smoother transitions
 let isTransitioning = false;
 let blockNumbers = [];
 let isFirstPlaythrough = true; // Flag to track if this is the first automatic playthrough
+
+// Add easing functions for smoother transitions
+const easing = {
+    // Cubic easing in/out - acceleration until halfway, then deceleration
+    easeInOutCubic: function(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    },
+    // Quadratic easing in/out
+    easeInOutQuad: function(t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    }
+};
 
 // Add UI for block navigation
 const blockNavUI = document.createElement('div');
@@ -775,18 +787,41 @@ function createStarsForBlock(blockNumber) {
     console.log(`Creating ${points.length} stars, mobile: ${isMobileView}`);
     const stars = [];
 
+    // 1) Compute average x,y
+    let sumX = 0;
+    let sumY = 0;
+    points.forEach(point => {
+        sumX += point[3];  // the x coordinate from your data
+        sumY += point[4];  // the y coordinate from your data
+    });
+    const count = points.length;
+    const avgX = sumX / count;
+    const avgY = sumY / count;
+
+    // 2) Decide what "front center" means. We want (0.5, 0.0) to be the center:
+    const targetX = 0.5;
+    const targetY = 0.0;
+
+    // 3) Calculate how far off the average is from that front-center
+    const offsetX = avgX - targetX;
+    const offsetY = avgY - targetY;
+
+    console.log("Avg x,y =", avgX, avgY, " => offsetX =", offsetX, "offsetY =", offsetY);
+
     // Create stars at each position and place them on a sphere
     points.forEach(point => {
         const x = point[3]; // 4th item is x
         const y = point[4]; // 5th item is y
         const clusterGroup = point[5]; // 6th item is cluster group
 
-        // Convert the 2D coordinates to 3D spherical coordinates
-        // Adjust mapping to place most stars in front of the camera (positive Z)
-        // Map x to longitude but center around 0 (front) instead of wrapping fully
-        // Map y to latitude but limit range for better visibility
-        const longitude = x * Math.PI - Math.PI / 2; // Shift to center stars in front
-        const latitude = y * Math.PI / 3; // Reduce vertical spread
+        // Instead of using x,y directly,
+        // we shift x,y so the average is forced to front/center:
+        const adjX = x - offsetX;  // shifted x
+        const adjY = y - offsetY;  // shifted y
+
+        // Then compute longitude & latitude from these adjusted coords:
+        const longitude = adjX * Math.PI - Math.PI / 2;
+        const latitude  = adjY * Math.PI / 3;
 
         // Convert spherical coordinates to Cartesian (x,y,z)
         const starX = sphereRadius * Math.cos(latitude) * Math.sin(longitude);
@@ -1135,6 +1170,34 @@ function updateStarPositions() {
             return;
         }
 
+        // Apply easing to the transition progress for smoother motion
+        const easedProgress = easing.easeInOutCubic(transitionProgress);
+        
+        // Calculate offset values for both current and target blocks
+        // Current block centering calculations
+        let currentSumX = 0, currentSumY = 0;
+        currentBlock.forEach(point => {
+            currentSumX += point[3];
+            currentSumY += point[4];
+        });
+        const currentCount = currentBlock.length;
+        const currentAvgX = currentSumX / currentCount;
+        const currentAvgY = currentSumY / currentCount;
+        const currentOffsetX = currentAvgX - 0.5; // Target is 0.5 for center
+        const currentOffsetY = currentAvgY - 0.0; // Target is 0.0 for center
+        
+        // Target block centering calculations
+        let targetSumX = 0, targetSumY = 0;
+        targetBlock.forEach(point => {
+            targetSumX += point[3];
+            targetSumY += point[4];
+        });
+        const targetCount = targetBlock.length;
+        const targetAvgX = targetSumX / targetCount;
+        const targetAvgY = targetSumY / targetCount;
+        const targetOffsetX = targetAvgX - 0.5; // Target is 0.5 for center
+        const targetOffsetY = targetAvgY - 0.0; // Target is 0.0 for center
+
         // Map stars by cluster group for easier matching
         const currentStarsByCluster = {};
         const targetStarsByCluster = {};
@@ -1173,28 +1236,59 @@ function updateStarPositions() {
             let targetMatchIndex = Math.min(matchIndex, targetPoints.length - 1);
             let targetPoint = targetPoints[targetMatchIndex];
 
-            // Get current coordinates
-            const currentX = currentPoint[3];
-            const currentY = currentPoint[4];
+            // Get current coordinates and apply current block's offset
+            const currentX = currentPoint[3] - currentOffsetX;
+            const currentY = currentPoint[4] - currentOffsetY;
 
-            // Get target coordinates
-            const targetX = targetPoint[3];
-            const targetY = targetPoint[4];
+            // Get target coordinates and apply target block's offset
+            const targetX = targetPoint[3] - targetOffsetX;
+            const targetY = targetPoint[4] - targetOffsetY;
 
-            // Interpolate between coordinates
-            const interpX = currentX + (targetX - currentX) * transitionProgress;
-            const interpY = currentY + (targetY - currentY) * transitionProgress;
+            // Interpolate between coordinates using eased progress
+            const interpX = currentX + (targetX - currentX) * easedProgress;
+            const interpY = currentY + (targetY - currentY) * easedProgress;
 
             // Convert interpolated coordinates to 3D position
             const longitude = interpX * Math.PI - Math.PI / 2;
             const latitude = interpY * Math.PI / 3;
 
-            // Update star position
+            // Update star position with smooth transition
             const newX = sphereRadius * Math.cos(latitude) * Math.sin(longitude);
             const newY = sphereRadius * Math.sin(latitude);
             const newZ = sphereRadius * Math.cos(latitude) * Math.cos(longitude);
 
             star.position.set(newX, newY, newZ);
+            
+            // Add subtle color and size transitions based on cluster groups
+            // Only apply if the cluster groups are different
+            if (currentPoint[5] !== targetPoint[5]) {
+                // Calculate colors for both current and target points
+                const currentHue = (parseInt(currentPoint[5]) * 50) % 360;
+                const targetHue = (parseInt(targetPoint[5]) * 50) % 360;
+                
+                // Calculate interpolated hue
+                let interpHue = currentHue + (targetHue - currentHue) * easedProgress;
+                if (Math.abs(targetHue - currentHue) > 180) {
+                    // Take the shorter path around the color wheel
+                    if (currentHue < targetHue) {
+                        currentHue += 360;
+                    } else {
+                        targetHue += 360;
+                    }
+                    interpHue = currentHue + (targetHue - currentHue) * easedProgress;
+                    interpHue %= 360;
+                }
+                
+                // Apply interpolated color
+                const interpColor = new THREE.Color(`hsl(${interpHue}, 100%, 90%)`);
+                star.material.color.copy(interpColor);
+                star.material.emissive.copy(interpColor);
+                
+                // Subtle size pulse during transition
+                const pulseMultiplier = 1.0 + 0.15 * Math.sin(easedProgress * Math.PI);
+                const starSize = isMobileView ? 0.8 : 0.5;
+                star.scale.set(pulseMultiplier, pulseMultiplier, pulseMultiplier);
+            }
         });
 
         // During transitions, we'll let the lines update naturally in the animate loop
@@ -1268,6 +1362,18 @@ function animate() {
     // Smooth rotation transition with telescope-like dampening
     currentRotationX += (targetRotationX - currentRotationX) * 0.03;
     currentRotationY += (targetRotationY - currentRotationY) * 0.03;
+
+    // Apply a subtle camera movement during transitions
+    if (isTransitioning) {
+        // Add a gentle camera sway during transitions
+        const swayAmount = 0.02;
+        const swaySpeed = 2.0;
+        const sway = Math.sin(transitionProgress * Math.PI * swaySpeed) * swayAmount * (1.0 - transitionProgress);
+        
+        // Apply subtle adjustments to target rotations during transition
+        targetRotationX += sway;
+        targetRotationY += sway * 0.5;
+    }
 
     // Update camera position based on rotation
     updateCameraPosition();
