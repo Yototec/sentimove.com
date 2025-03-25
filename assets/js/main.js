@@ -169,88 +169,58 @@ document.addEventListener('touchmove', (event) => {
     }
 }, { passive: false });
 
-// Helper function to calculate distance between two touch points
 function getPinchDistance(event) {
     const dx = event.touches[0].clientX - event.touches[1].clientX;
     const dy = event.touches[0].clientY - event.touches[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-// Handle window resize
 window.addEventListener('resize', () => {
-    // Update mobile detection
     const wasMobile = isMobileView;
     isMobileView = window.innerWidth < 768;
-
     if (wasMobile !== isMobileView) {
         console.log("Mobile state changed:", isMobileView, "Width:", window.innerWidth);
-        // Update blockNavUI position when mobile state changes
         blockNavUI.style.bottom = isMobileView ? '60px' : '40px';
     }
-
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     if (labelRenderer) {
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
     }
-
-    // Recalculate optimal camera distance for new aspect ratio
     const newAspectRatio = window.innerWidth / window.innerHeight;
     const newHorizontalFovRadians = 2 * Math.atan(Math.tan(fovRadians / 2) * newAspectRatio);
     const newEffectiveFovRadians = Math.min(fovRadians, newHorizontalFovRadians);
     cameraDistance = (sphereRadius / Math.sin(newEffectiveFovRadians / 2)) * safetyMargin;
-
-    // Adjust camera distance for mobile
     if (isMobileView) {
         cameraDistance *= 0.7;
     }
-
     cameraDistance = Math.max(minDistance, Math.min(maxDistance, cameraDistance));
-
-    // Update camera position
     updateCameraPosition();
-
-    // Update cluster labels position
     updateClusterLabelsPosition();
 });
 
-// Add mouse wheel for zooming
 document.addEventListener('wheel', (event) => {
-    // Determine zoom direction (in or out)
     const zoomAmount = event.deltaY * 0.1;
-
-    // Update camera distance
     cameraDistance = Math.max(minDistance, Math.min(maxDistance, cameraDistance + zoomAmount));
-
-    // Update camera position while maintaining direction
     updateCameraPosition();
 });
 
-// Function to update camera position based on current rotation and distance
 function updateCameraPosition() {
-    // Create rotation matrix from current rotation values
     const rotationMatrix = new THREE.Matrix4().makeRotationY(currentRotationY);
     rotationMatrix.multiply(new THREE.Matrix4().makeRotationX(currentRotationX));
-
-    // Apply rotation to the base direction vector (0,0,-1 means looking forward along negative z-axis)
     const direction = new THREE.Vector3(0, 0, -1);
     direction.applyMatrix4(rotationMatrix);
-
-    // Position camera at the appropriate distance from center along this direction
     camera.position.set(
         direction.x * -cameraDistance,
         direction.y * -cameraDistance,
         direction.z * -cameraDistance
     );
-
-    // Look at center of star sphere
     camera.lookAt(0, 0, 0);
 }
 
 let labelRenderer;
 
-// Variables for animation between blocks
 let starObjects = [];
 let constellationLines = [];
 let labelObjects = []; // Add array to track label objects
@@ -262,24 +232,19 @@ let transitionSpeed = 0.015; // Reduced from 0.02 for smoother transitions
 let isTransitioning = false;
 let blockNumbers = [];
 let isFirstPlaythrough = true; // Flag to track if this is the first automatic playthrough
-// Add variables for constellation lines delay
 let lastTransitionTime = 0;
 let constellationLinesVisible = false;
 let constellationLineDelay = 1000; // 2 seconds delay for showing lines
 
-// Add easing functions for smoother transitions
 const easing = {
-    // Cubic easing in/out - acceleration until halfway, then deceleration
     easeInOutCubic: function (t) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     },
-    // Quadratic easing in/out
     easeInOutQuad: function (t) {
         return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     }
 };
 
-// Add UI for block navigation
 const blockNavUI = document.createElement('div');
 blockNavUI.style.position = 'absolute';
 blockNavUI.style.bottom = isMobileView ? '60px' : '40px';
@@ -290,7 +255,6 @@ blockNavUI.style.fontFamily = 'Arial, sans-serif';
 blockNavUI.style.zIndex = '20';
 document.body.appendChild(blockNavUI);
 
-// Create a container for cluster labels
 const clusterLabelsContainer = document.createElement('div');
 clusterLabelsContainer.className = 'cluster-labels-container';
 clusterLabelsContainer.style.position = 'absolute';
@@ -310,16 +274,11 @@ clusterLabelsContainer.style.overflowX = 'hidden'; // Prevent horizontal scrolli
 clusterLabelsContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
 clusterLabelsContainer.style.backdropFilter = 'blur(2px)';
 
-// Add custom scrollbar styling for mobile
 function updateScrollbarStyle() {
     if (isMobileView) {
-        // Custom scrollbar for mobile
         clusterLabelsContainer.style.scrollbarWidth = 'thin'; // For Firefox
         clusterLabelsContainer.style.scrollbarColor = '#00FFC8 rgba(0,0,0,0.3)'; // For Firefox
-
-        // Add WebKit scrollbar styling via stylesheet
         let scrollbarStyle = document.getElementById('mobile-scrollbar-style');
-
         if (!scrollbarStyle) {
             scrollbarStyle = document.createElement('style');
             scrollbarStyle.id = 'mobile-scrollbar-style';
@@ -346,7 +305,6 @@ function updateScrollbarStyle() {
 
 document.body.appendChild(clusterLabelsContainer);
 
-// Prevent touch events on cluster labels from affecting sphere rotation
 clusterLabelsContainer.addEventListener('touchstart', (event) => {
     event.stopPropagation();
 }, { passive: false });
@@ -359,7 +317,6 @@ clusterLabelsContainer.addEventListener('touchend', (event) => {
     event.stopPropagation();
 }, { passive: false });
 
-// Set up animation controls
 const animationControlsUI = document.createElement('div');
 animationControlsUI.style.position = 'absolute';
 animationControlsUI.style.bottom = '70px';
@@ -368,7 +325,6 @@ animationControlsUI.style.textAlign = 'center';
 animationControlsUI.style.zIndex = '20';
 document.body.appendChild(animationControlsUI);
 
-// Create a slider container
 const sliderContainer = document.createElement('div');
 sliderContainer.id = 'sliderContainer'; // Add ID for event handling
 sliderContainer.style.width = window.innerWidth < 768 ? '80%' : '50%'; // Mobile responsive width
@@ -380,7 +336,6 @@ sliderContainer.style.alignItems = 'center';
 sliderContainer.style.justifyContent = 'center';
 blockNavUI.appendChild(sliderContainer);
 
-// Create a slider input
 const slider = document.createElement('input');
 slider.type = 'range';
 slider.min = '0';
@@ -397,7 +352,6 @@ slider.style.webkitAppearance = 'none';
 slider.style.cursor = 'pointer';
 sliderContainer.appendChild(slider);
 
-// Create play/pause toggle button
 const toggleButton = document.createElement('div');
 toggleButton.className = 'toggle-button';
 toggleButton.style.width = '16px';
@@ -410,7 +364,6 @@ toggleButton.style.boxShadow = '0 0 5px rgba(255, 255, 255, 0.5)';
 toggleButton.style.transition = 'background-color 0.3s';
 sliderContainer.appendChild(toggleButton);
 
-// Create speed indicator element
 const speedIndicator = document.createElement('div');
 speedIndicator.style.marginLeft = '10px';
 speedIndicator.style.color = '#fff';
@@ -419,7 +372,6 @@ speedIndicator.style.fontFamily = 'Arial, sans-serif';
 speedIndicator.textContent = 'x5.0'; // Will be updated when speed is known
 sliderContainer.appendChild(speedIndicator);
 
-// Create block number label
 const blockLabel = document.createElement('a');
 blockLabel.style.position = 'absolute';
 blockLabel.style.top = '20px';
@@ -438,7 +390,6 @@ blockLabel.href = 'https://sentichain.com/app?tab=BlockExplorer#';
 blockLabel.target = '_blank'; // Open in new tab
 document.body.appendChild(blockLabel);
 
-// Create timestamp label
 const timestampLabel = document.createElement('div');
 timestampLabel.style.position = 'absolute';
 timestampLabel.style.top = '50px'; // Position below the block label
@@ -453,33 +404,21 @@ timestampLabel.style.fontFamily = 'Arial, sans-serif';
 timestampLabel.textContent = '--';
 document.body.appendChild(timestampLabel);
 
-// Cache for block timestamps
 const timestampCache = {};
 
-// Function to fetch and update timestamp
 async function updateTimestamp(blockNumber) {
-    // Check cache first
     if (timestampCache[blockNumber]) {
         timestampLabel.textContent = `${timestampCache[blockNumber]}`;
         return;
     }
-
-    // Show loading state
     timestampLabel.textContent = '...';
-
     try {
         const response = await fetch(`https://api.sentichain.com/blockchain/get_timestamp_from_block_number?network=mainnet&block_number=${blockNumber}`);
         const data = await response.json();
-
         if (data && data.timestamp) {
-            // Convert UTC to local time
             const utcDate = new Date(data.timestamp);
             const localTimeString = utcDate.toLocaleString();
-
-            // Cache the result
             timestampCache[blockNumber] = localTimeString;
-
-            // Update the label
             timestampLabel.textContent = `${localTimeString}`;
         } else {
             timestampLabel.textContent = 'N/A';
@@ -496,7 +435,6 @@ const normalAutoplaySpeed = 2000; // 2 seconds for last 25% and after first play
 let currentAutoplaySpeed = fastAutoplaySpeed; // Start with fast speed
 let autoplayTimer = null;
 
-// Update the slider when blockNumbers are loaded
 function updateSlider() {
     if (blockNumbers.length > 0) {
         slider.max = blockNumbers.length - 1;
@@ -505,24 +443,19 @@ function updateSlider() {
     }
 }
 
-// Update the block label based on the current slider value
 function updateBlockLabel() {
     if (blockNumbers.length > 0) {
         const blockNumber = blockNumbers[slider.value];
         blockLabel.innerHTML = `Block ${blockNumber} <span>↗</span>`;
         blockLabel.href = `https://sentichain.com/app?tab=BlockExplorer#`;
-
-        // Also update timestamp when block changes
         updateTimestamp(blockNumber);
     }
 }
 
-// Add event listeners for the slider
 slider.addEventListener('input', function () {
     if (!isTransitioning) {
         const newIndex = parseInt(this.value);
         if (targetBlockIndex !== newIndex) {
-            // Check if the target block has data before transitioning
             const targetBlockNumber = blockNumbers[newIndex];
             if (!blockData[targetBlockNumber] || blockData[targetBlockNumber].length === 0) {
                 console.warn(`Block ${targetBlockNumber} has no data, skipping transition`);
@@ -537,79 +470,49 @@ slider.addEventListener('input', function () {
     }
 });
 
-// Function to update block navigation UI - now just updates the slider
 function updateBlockNavUI() {
     updateSlider();
 }
 
-// Update toggle button appearance
 function updateToggleButton() {
     toggleButton.style.backgroundColor = isAutoPlaying ? '#4CAF50' : '#FF5252'; // Green for play, red for pause
-
-    // Always calculate and set the speed text, but control visibility with opacity
     const speedMultiplier = Math.round(1000 / currentAutoplaySpeed);
     speedIndicator.textContent = `x${speedMultiplier}`;
-
-    // Show speed indicator only when playing (green dot)
     speedIndicator.style.opacity = isAutoPlaying ? '1' : '0';
-
-    // Disable slider when playing (green dot), enable when paused (red dot)
     slider.disabled = isAutoPlaying;
-
-    // Update slider appearance based on state
     slider.style.opacity = isAutoPlaying ? '0.5' : '1';
     slider.style.cursor = isAutoPlaying ? 'not-allowed' : 'pointer';
 }
 
-// Function to determine the correct autoplay speed based on current position
 function getAutoplaySpeed() {
-    // If not first playthrough or user clicked toggle, always use normal speed
     if (!isFirstPlaythrough) {
         return normalAutoplaySpeed;
     }
-
-    // Calculate the threshold for switching to normal speed (75% of blocks)
     const speedChangeThreshold = Math.floor(blockNumbers.length * 0.75);
-
-    // Use fast speed for first 90% of blocks, normal speed for last 25%
     return (targetBlockIndex < speedChangeThreshold) ? fastAutoplaySpeed : normalAutoplaySpeed;
 }
 
-// Update speed indicator immediately when initialized
 function updateSpeedIndicator() {
     const speedMultiplier = Math.round(1000 / currentAutoplaySpeed);
     speedIndicator.textContent = `x${speedMultiplier}`;
 }
 
-// Start autoplay timer immediately since isAutoPlaying is true
 function startAutoplayTimer() {
     clearInterval(autoplayTimer); // Clear any existing timer
-
-    // Get the appropriate speed
     currentAutoplaySpeed = getAutoplaySpeed();
-
-    // Update speed indicator
     updateSpeedIndicator();
-
     autoplayTimer = setInterval(() => {
         if (!isTransitioning) {
-            // Check if we're at the last block and this is the first playthrough
             const nextBlockIndex = (targetBlockIndex + 1) % blockNumbers.length;
-
-            // If we're at the last block and this is the first playthrough, stop
             if (nextBlockIndex === 0 && isFirstPlaythrough) {
                 isAutoPlaying = false;
                 updateToggleButton();
                 clearInterval(autoplayTimer);
                 return;
             }
-
-            // Find next valid block index
             let validNextIndex = nextBlockIndex;
             let attempts = 0;
             const maxAttempts = blockNumbers.length;
-
-            // Keep trying different blocks until we find one with data or exhaust all options
             while (attempts < maxAttempts) {
                 const nextBlockNumber = blockNumbers[validNextIndex];
                 if (blockData[nextBlockNumber] && blockData[nextBlockNumber].length > 0) {
@@ -630,20 +533,16 @@ function startAutoplayTimer() {
             transitionProgress = 0;
             updateBlockLabel();
 
-            // After moving to the next block, check if we need to adjust the speed
             const newSpeed = getAutoplaySpeed();
             if (newSpeed !== currentAutoplaySpeed) {
                 currentAutoplaySpeed = newSpeed;
-                // Update speed indicator
                 updateSpeedIndicator();
-                // Restart the timer with the new speed
                 startAutoplayTimer();
             }
         }
     }, currentAutoplaySpeed);
 }
 
-// Add event listener for toggle button
 toggleButton.addEventListener('click', () => {
     isAutoPlaying = !isAutoPlaying;
     updateToggleButton();
@@ -658,22 +557,18 @@ toggleButton.addEventListener('click', () => {
     }
 });
 
-// Fetch data from API and create stars
 fetch('https://api.sentichain.com/mapper/get_max_block_number')
     .then(response => response.json())
     .then(data => {
         const maxBlockNumber = data.max_block_number;
         const startBlock = maxBlockNumber - 10;
         const endBlock = maxBlockNumber;
-
-        // Now fetch the points using the calculated blocks
         return fetch(`https://api.sentichain.com/mapper/get_points_by_block_range_no_embedding?start_block=${startBlock}&end_block=${endBlock}&api_key=abc123`);
     })
     .then(response => response.json())
     .then(data => {
         const points = data.points;
 
-        // Organize points by block number
         points.forEach(point => {
             const blockNumber = point[0]; // 1st item is block number
             if (!blockData[blockNumber]) {
@@ -682,34 +577,16 @@ fetch('https://api.sentichain.com/mapper/get_max_block_number')
             }
             blockData[blockNumber].push(point);
         });
-
-        // Sort block numbers for sequential animation
         blockNumbers.sort((a, b) => a - b);
-
-        // Initialize with the first block
         currentBlockIndex = 0;
         targetBlockIndex = 0;
-
-        // Create initial stars and constellations
         createStarsForBlock(blockNumbers[currentBlockIndex]);
-
-        // Set lastTransitionTime to trigger the initial delay of constellation lines
         lastTransitionTime = Date.now();
         constellationLinesVisible = false;
-
-        // Update slider for block navigation
         updateSlider();
-
-        // Initialize toggle button state
         updateToggleButton();
-
-        // Initialize speed indicator
         updateSpeedIndicator();
-
-        // Start autoplay timer immediately since isAutoPlaying is true
         startAutoplayTimer();
-
-        // Add CSS2D renderer for labels
         labelRenderer = new THREE.CSS2DRenderer();
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
         labelRenderer.domElement.style.position = 'absolute';
@@ -717,10 +594,8 @@ fetch('https://api.sentichain.com/mapper/get_max_block_number')
         labelRenderer.domElement.style.pointerEvents = 'none';
         document.body.appendChild(labelRenderer.domElement);
 
-        // Start animation
         animate();
 
-        // Set a timer to check if stars were created successfully
         setTimeout(() => {
             if (starObjects.length === 0) {
                 console.warn("No stars created after fetch, using emergency fallback");
@@ -730,19 +605,13 @@ fetch('https://api.sentichain.com/mapper/get_max_block_number')
     })
     .catch(error => {
         console.error('Error fetching data:', error);
-        // Fallback to original 3 stars if fetch fails
         createFallbackStars();
     });
 
-// Function to create stars and constellations for a specific block
 function createStarsForBlock(blockNumber) {
     console.log("Creating stars for block", blockNumber, "Mobile view:", isMobileView);
-
-    // Clear existing star objects and lines
     starObjects.forEach(star => scene.remove(star));
     constellationLines.forEach(line => scene.remove(line));
-
-    // Also remove any existing labels if we're not transitioning
     if (!isTransitioning) {
         scene.traverse(object => {
             if (object instanceof THREE.CSS2DObject) {
