@@ -77,6 +77,9 @@ let lastMouseY = 0;
 
 // Handle mouse drag for desktop (replacing mouse movement)
 document.addEventListener('mousedown', (event) => {
+    // Skip if the mouse is on slider or slider container
+    if (event.target.closest('.toggle-button') || event.target === slider || event.target.closest('#sliderContainer')) return;
+    
     isMouseDragging = true;
     lastMouseX = event.clientX;
     lastMouseY = event.clientY;
@@ -122,8 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Handle touch events for mobile
 document.addEventListener('touchstart', (event) => {
-    // Skip if the touch is on the cluster labels container
-    if (event.target.closest('.cluster-labels-container')) return;
+    // Skip if the touch is on the slider, toggle button, or cluster labels container
+    if (event.target.closest('.cluster-labels-container') || 
+        event.target.closest('.toggle-button') || 
+        event.target === slider || 
+        event.target.closest('#sliderContainer')) return;
     
     if (event.touches.length === 1) {
         isTouching = true;
@@ -133,8 +139,11 @@ document.addEventListener('touchstart', (event) => {
 }, { passive: true });
 
 document.addEventListener('touchmove', (event) => {
-    // Skip if the touch is on the cluster labels container
-    if (event.target.closest('.cluster-labels-container')) return;
+    // Skip if the touch is on the slider, toggle button, or cluster labels container
+    if (event.target.closest('.cluster-labels-container') || 
+        event.target.closest('.toggle-button') || 
+        event.target === slider || 
+        event.target.closest('#sliderContainer')) return;
     
     if (isTouching && event.touches.length === 1) {
         // Calculate touch delta
@@ -373,6 +382,7 @@ document.body.appendChild(animationControlsUI);
 
 // Create a slider container
 const sliderContainer = document.createElement('div');
+sliderContainer.id = 'sliderContainer'; // Add ID for event handling
 sliderContainer.style.width = window.innerWidth < 768 ? '80%' : '50%'; // Mobile responsive width
 sliderContainer.style.margin = '0 auto';
 sliderContainer.style.position = 'relative';
