@@ -31,6 +31,16 @@ let blinkDirection = 1;
 const minBlinkIntensity = 0.6;
 const maxBlinkIntensity = 1.4;
 
+// Add variables for constellation line animation
+let constellationLineAnimations = [];
+const lineGrowthSpeed = 0.03; // Speed of line growth animation
+const lineRevealDelay = 150; // Milliseconds between line reveals
+
+// Modify these variables for faster parallel animation
+const lineGrowthSpeedFast = 0.08; // Increased speed for faster animation
+const lineRevealIntraClusterDelay = 40; // Much shorter delay between lines in same cluster
+const lineRevealInterClusterDelay = 100; // Delay between different clusters starting
+
 camera.position.z = cameraDistance;
 camera.position.y = 0;
 camera.position.x = 0;
@@ -234,7 +244,8 @@ let blockNumbers = [];
 let isFirstPlaythrough = true; // Flag to track if this is the first automatic playthrough
 let lastTransitionTime = 0;
 let constellationLinesVisible = false;
-let constellationLineDelay = 1000; // 2 seconds delay for showing lines
+let constellationLineDelay = 1000; // 1 second delay for showing lines
+let lineAnimationStarted = false; // Track if line animation has started
 
 const easing = {
     easeInOutCubic: function (t) {
@@ -906,10 +917,14 @@ function createStarsForBlock(blockNumber) {
             constellationLine.userData = {
                 fromStar: fromStar,
                 toStar: toStar,
-                baseOpacity: baseOpacity // Store base opacity for blinking
+                baseOpacity: baseOpacity, // Store base opacity for blinking
+                progress: 0, // Initialize progress for animation
+                animated: false, // Track if this line has been animated
+                startTime: null, // Will be set when animation starts
+                clusterGroup: groupId // Add cluster group ID for parallel animation
             };
 
-            // Initially hide the constellation line until delay has passed
+            // Initially hide the constellation line until delay has passed and animation begins
             constellationLine.visible = false;
         }
     });
@@ -994,6 +1009,7 @@ function updateStarPositions() {
         // Record the time when transition completed to delay constellation lines
         lastTransitionTime = Date.now();
         constellationLinesVisible = false;
+        lineAnimationStarted = false; // Reset line animation state
 
         // Hide constellation lines immediately after transition
         constellationLines.forEach(line => {
@@ -1210,6 +1226,8 @@ function animate() {
     currentRotationY += (targetRotationY - currentRotationY) * 0.03;
     updateCameraPosition();
     updateStarPositions();
+    
+    // Update blinking effect
     blinkFactor += blinkSpeed * blinkDirection;
     if (blinkFactor >= 1) {
         blinkDirection = -1;
@@ -1217,6 +1235,8 @@ function animate() {
         blinkDirection = 1;
     }
     const currentBlinkIntensity = minBlinkIntensity + blinkFactor * (maxBlinkIntensity - minBlinkIntensity);
+    
+    // Update star brightness
     starObjects.forEach(star => {
         if (star.material) {
             star.material.emissiveIntensity = star.userData.baseEmissiveIntensity
@@ -1225,6 +1245,7 @@ function animate() {
         }
     });
 
+    // Update line brightness for visible lines
     constellationLines.forEach(line => {
         if (line.material && line.visible) {
             line.material.opacity = line.userData.baseOpacity
@@ -1233,27 +1254,120 @@ function animate() {
         }
     });
 
-    if (!constellationLinesVisible && !isTransitioning && Date.now() - lastTransitionTime >= constellationLineDelay) {
+    // Check if it's time to start constellation line animation
+    if (!lineAnimationStarted && !isTransitioning && Date.now() - lastTransitionTime >= constellationLineDelay) {
+        lineAnimationStarted = true;
         constellationLinesVisible = true;
+        
+        // Set up animation for each line with staggered start times grouped by cluster
+        const clusterGroups = {};
+        
+        // Group lines by cluster
         constellationLines.forEach(line => {
-            line.visible = true;
+            if (line.userData.isLabelLine) return; // Skip label lines
+            
+            const groupId = line.userData.clusterGroup;
+            if (!groupId) return;
+            
+            if (!clusterGroups[groupId]) {
+                clusterGroups[groupId] = [];
+            }
+            clusterGroups[groupId].push(line);
+        });
+        
+        // Set animation timing by cluster (parallel between clusters)
+        let clusterIndex = 0;
+        Object.keys(clusterGroups).forEach(groupId => {
+            const clusterLines = clusterGroups[groupId];
+            const clusterStartTime = Date.now() + clusterIndex * lineRevealInterClusterDelay;
+            
+            // Assign start times to lines within this cluster
+            clusterLines.forEach((line, lineIndex) => {
+                line.userData.startTime = clusterStartTime + lineIndex * lineRevealIntraClusterDelay;
+                line.userData.animated = false;
+                line.userData.progress = 0;
+                line.visible = false; // Will be made visible when animation starts
+            });
+            
+            clusterIndex++;
+        });
+        
+        // Handle any lines without cluster assignment (fallback)
+        constellationLines.forEach(line => {
+            if (line.userData.isLabelLine) {
+                // Make label lines visible immediately
+                line.visible = true;
+            } else if (!line.userData.startTime) {
+                // If a line doesn't have a start time yet, assign one
+                line.userData.startTime = Date.now() + clusterIndex * lineRevealInterClusterDelay;
+                line.userData.animated = false;
+                line.userData.progress = 0;
+                line.visible = false;
+            }
+        });
+    }
+    
+    // Animate constellation lines
+    if (lineAnimationStarted) {
+        const currentTime = Date.now();
+        let allLinesAnimated = true;
+        
+        constellationLines.forEach(line => {
+            if (line.userData.isLabelLine) return; // Skip label lines
+            
+            if (!line.userData.animated) {
+                if (line.userData.startTime && currentTime >= line.userData.startTime) {
+                    // Start animation for this line
+                    line.visible = true;
+                    
+                    // Update line progress with faster speed
+                    line.userData.progress += lineGrowthSpeedFast;
+                    
+                    if (line.userData.progress >= 1) {
+                        line.userData.progress = 1;
+                        line.userData.animated = true;
+                    } else {
+                        allLinesAnimated = false;
+                    }
+                    
+                    // Animate line by growing it from start to end
+                    if (line.userData.fromStar && line.userData.toStar) {
+                        const start = line.userData.fromStar.position;
+                        const end = line.userData.toStar.position;
+                        const middle = new THREE.Vector3().lerpVectors(
+                            start, end, line.userData.progress
+                        );
+                        
+                        // Create a new line geometry that grows from start to current point
+                        const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                            start, middle
+                        ]);
+                        line.geometry.dispose();
+                        line.geometry = lineGeo;
+                    }
+                } else {
+                    allLinesAnimated = false;
+                }
+            }
         });
     }
 
     scene.traverse(object => {
         if (object instanceof THREE.Line) {
             if (constellationLinesVisible && object.visible) {
-                if (object.userData.fromStar && object.userData.toStar) {
-                    const lineGeo = new THREE.BufferGeometry().setFromPoints([
-                        object.userData.fromStar.position,
-                        object.userData.toStar.position
-                    ]);
-                    object.geometry.dispose();
-                    object.geometry = lineGeo;
-                } else if (object.userData.isLabelLine && object.userData.startPoint && object.userData.endPoint) {
+                // Update label lines and fully animated constellation lines
+                if (object.userData.isLabelLine && object.userData.startPoint && object.userData.endPoint) {
                     const lineGeo = new THREE.BufferGeometry().setFromPoints([
                         object.userData.startPoint,
                         object.userData.endPoint
+                    ]);
+                    object.geometry.dispose();
+                    object.geometry = lineGeo;
+                } else if (object.userData.animated && object.userData.fromStar && object.userData.toStar) {
+                    // This is a fully animated constellation line - update its full length
+                    const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                        object.userData.fromStar.position,
+                        object.userData.toStar.position
                     ]);
                     object.geometry.dispose();
                     object.geometry = lineGeo;
