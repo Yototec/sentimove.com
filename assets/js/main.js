@@ -24,6 +24,13 @@ if (isMobileView) {
 const minDistance = cameraDistance * 0.8;
 const maxDistance = cameraDistance * 1.2;
 
+// Add variables for star and constellation line blinking
+let blinkFactor = 0;
+const blinkSpeed = 0.03;
+let blinkDirection = 1;
+const minBlinkIntensity = 0.6;
+const maxBlinkIntensity = 1.4;
+
 camera.position.z = cameraDistance;
 camera.position.y = 0;
 camera.position.x = 0;
@@ -810,11 +817,16 @@ function createStarsForBlock(blockNumber) {
         const starSize = isMobileView ? 1.2 : 0.8; // Increased size for both desktop and mobile
         const mobileStarGeometry = new THREE.SphereGeometry(starSize, isMobileView ? 16 : 32, isMobileView ? 16 : 32);
 
+        const baseEmissiveIntensity = isMobileView ? 15.0 : 4.0; // Higher brightness on both mobile and desktop
+        
         const star = new THREE.Mesh(mobileStarGeometry, new THREE.MeshBasicMaterial({
             color: starColor,
             emissive: starColor,
-            emissiveIntensity: isMobileView ? 15.0 : 4.0 // Higher brightness on both mobile and desktop
+            emissiveIntensity: baseEmissiveIntensity
         }));
+
+        // Store base emissive intensity for blinking effect
+        star.userData.baseEmissiveIntensity = baseEmissiveIntensity;
 
         // Position stars on the inside of a sphere
         star.position.set(starX, starY, starZ);
@@ -904,6 +916,7 @@ function createStarsForBlock(blockNumber) {
                 labelLine.userData.startPoint = starPosition;
                 labelLine.userData.endPoint = labelPosition;
                 labelLine.userData.isLabelLine = true;
+                labelLine.userData.baseOpacity = 0.2; // Store base opacity for blinking
 
                 // Add label and line to scene
                 scene.add(label);
@@ -955,6 +968,7 @@ function createStarsForBlock(blockNumber) {
                 labelLine.userData.startPoint = centerOfMass;
                 labelLine.userData.endPoint = labelPosition;
                 labelLine.userData.isLabelLine = true;
+                labelLine.userData.baseOpacity = 0.2; // Store base opacity for blinking
 
                 // Add label and line to scene
                 scene.add(label);
@@ -1032,10 +1046,13 @@ function createStarsForBlock(blockNumber) {
                 toStar.position
             ]);
             
+            // Base opacity for constellation lines
+            const baseOpacity = isMobileView ? 1.0 : 0.8;
+            
             // Make lines more colorful by using more saturated colors
             const constellationLineMat = new THREE.LineBasicMaterial({
                 color: new THREE.Color(`hsl(${hue}, 100%, 60%)`), // More saturated color for lines
-                opacity: isMobileView ? 1.0 : 0.8, // More visible lines on desktop too
+                opacity: baseOpacity, // More visible lines on desktop too
                 transparent: true,
                 linewidth: isMobileView ? 3.0 : 1.0 // Thicker lines on desktop too
             });
@@ -1046,7 +1063,8 @@ function createStarsForBlock(blockNumber) {
             // Store references to connected stars for updating lines during zoom
             constellationLine.userData = {
                 fromStar: fromStar,
-                toStar: toStar
+                toStar: toStar,
+                baseOpacity: baseOpacity // Store base opacity for blinking
             };
 
             // Initially hide the constellation line until delay has passed
@@ -1357,6 +1375,35 @@ function animate() {
     // Update star positions for block transition
     updateStarPositions();
 
+    // Calculate blinking effect
+    blinkFactor += blinkSpeed * blinkDirection;
+    if (blinkFactor >= 1) {
+        blinkDirection = -1;
+    } else if (blinkFactor <= 0) {
+        blinkDirection = 1;
+    }
+    
+    // Apply blinking to stars and constellation lines
+    const currentBlinkIntensity = minBlinkIntensity + blinkFactor * (maxBlinkIntensity - minBlinkIntensity);
+    
+    // Make stars blink
+    starObjects.forEach(star => {
+        if (star.material) {
+            star.material.emissiveIntensity = star.userData.baseEmissiveIntensity 
+                ? star.userData.baseEmissiveIntensity * currentBlinkIntensity
+                : (isMobileView ? 15.0 : 4.0) * currentBlinkIntensity;
+        }
+    });
+    
+    // Make constellation lines blink by changing opacity
+    constellationLines.forEach(line => {
+        if (line.material && line.visible) {
+            line.material.opacity = line.userData.baseOpacity 
+                ? line.userData.baseOpacity * currentBlinkIntensity
+                : (isMobileView ? 1.0 : 0.8) * currentBlinkIntensity;
+        }
+    });
+
     // Check if it's time to show constellation lines
     if (!constellationLinesVisible && !isTransitioning && Date.now() - lastTransitionTime >= constellationLineDelay) {
         constellationLinesVisible = true;
@@ -1496,14 +1543,17 @@ function createEmergencyFallbackStars() {
 
         // Use a variety of bright colors
         const color = colors[i % colors.length];
+        const baseEmissiveIntensity = isMobileView ? 20.0 : 5.0; // Increased brightness for both
+        
         const starMat = new THREE.MeshBasicMaterial({
             color: color,
             emissive: color,
-            emissiveIntensity: isMobileView ? 20.0 : 5.0 // Increased brightness for both
+            emissiveIntensity: baseEmissiveIntensity
         });
 
         const star = new THREE.Mesh(starGeom, starMat);
         star.position.set(x, y, z);
+        star.userData.baseEmissiveIntensity = baseEmissiveIntensity; // Store for blinking effect
 
         scene.add(star);
         starObjects.push(star);
@@ -1528,11 +1578,12 @@ function createEmergencyFallbackStars() {
 
         // Use the same color as the corresponding star for the line
         const starColor = fromStar.material.color.clone();
+        const baseOpacity = 1.0;
         
         const lineMaterial = new THREE.LineBasicMaterial({
             color: starColor,
-            opacity: 1.0,
-            transparent: false,
+            opacity: baseOpacity,
+            transparent: true,
             linewidth: 2.0
         });
 
@@ -1543,7 +1594,8 @@ function createEmergencyFallbackStars() {
         // Store references to connected stars for updating lines during zoom
         line.userData = {
             fromStar: fromStar,
-            toStar: toStar
+            toStar: toStar,
+            baseOpacity: baseOpacity // Store base opacity for blinking
         };
     }
 
