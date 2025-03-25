@@ -290,6 +290,10 @@ let transitionSpeed = 0.015; // Reduced from 0.02 for smoother transitions
 let isTransitioning = false;
 let blockNumbers = [];
 let isFirstPlaythrough = true; // Flag to track if this is the first automatic playthrough
+// Add variables for constellation lines delay
+let lastTransitionTime = 0;
+let constellationLinesVisible = false;
+let constellationLineDelay = 1000; // 2 seconds delay for showing lines
 
 // Add easing functions for smoother transitions
 const easing = {
@@ -716,6 +720,10 @@ fetch('https://api.sentichain.com/mapper/get_max_block_number')
 
         // Create initial stars and constellations
         createStarsForBlock(blockNumbers[currentBlockIndex]);
+        
+        // Set lastTransitionTime to trigger the initial delay of constellation lines
+        lastTransitionTime = Date.now();
+        constellationLinesVisible = false;
 
         // Update slider for block navigation
         updateSlider();
@@ -1072,6 +1080,9 @@ function createStarsForBlock(blockNumber) {
                 fromStar: fromStar,
                 toStar: toStar
             };
+            
+            // Initially hide the constellation line until delay has passed
+            constellationLine.visible = false;
         }
     });
     
@@ -1151,6 +1162,15 @@ function updateStarPositions() {
 
         // Update with final positions
         createStarsForBlock(blockNumbers[currentBlockIndex]);
+        
+        // Record the time when transition completed to delay constellation lines
+        lastTransitionTime = Date.now();
+        constellationLinesVisible = false;
+        
+        // Hide constellation lines immediately after transition
+        constellationLines.forEach(line => {
+            line.visible = false;
+        });
     } else {
         // During transition - update positions without removing labels
         
@@ -1368,29 +1388,40 @@ function animate() {
 
     // Update star positions for block transition
     updateStarPositions();
+    
+    // Check if it's time to show constellation lines
+    if (!constellationLinesVisible && !isTransitioning && Date.now() - lastTransitionTime >= constellationLineDelay) {
+        constellationLinesVisible = true;
+        constellationLines.forEach(line => {
+            line.visible = true;
+        });
+    }
 
     // Update constellation lines
     scene.traverse(object => {
         if (object instanceof THREE.Line) {
-            if (object.userData.fromStar && object.userData.toStar) {
-                const lineGeo = new THREE.BufferGeometry().setFromPoints([
-                    object.userData.fromStar.position,
-                    object.userData.toStar.position
-                ]);
-                object.geometry.dispose();
-                object.geometry = lineGeo;
-            } else if (object.userData.isLabelLine && object.userData.startPoint && object.userData.endPoint) {
-                const lineGeo = new THREE.BufferGeometry().setFromPoints([
-                    object.userData.startPoint,
-                    object.userData.endPoint
-                ]);
-                object.geometry.dispose();
-                object.geometry = lineGeo;
-            } else if (object.userData.stars) {
-                const points = object.userData.stars.map(star => star.position);
-                const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-                object.geometry.dispose();
-                object.geometry = lineGeo;
+            // Only update visible lines to save performance
+            if (constellationLinesVisible && object.visible) {
+                if (object.userData.fromStar && object.userData.toStar) {
+                    const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                        object.userData.fromStar.position,
+                        object.userData.toStar.position
+                    ]);
+                    object.geometry.dispose();
+                    object.geometry = lineGeo;
+                } else if (object.userData.isLabelLine && object.userData.startPoint && object.userData.endPoint) {
+                    const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                        object.userData.startPoint,
+                        object.userData.endPoint
+                    ]);
+                    object.geometry.dispose();
+                    object.geometry = lineGeo;
+                } else if (object.userData.stars) {
+                    const points = object.userData.stars.map(star => star.position);
+                    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+                    object.geometry.dispose();
+                    object.geometry = lineGeo;
+                }
             }
         }
     });
