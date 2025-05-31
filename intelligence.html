@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SentiMove Intelligence - Real-Time Crypto Market Sentiment Analysis</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Advanced cryptocurrency market sentiment analysis powered by AI. Track real-time sentiment events for Bitcoin, Ethereum, and other major cryptocurrencies with SentiMove Intelligence.">
+  <meta name="keywords" content="crypto sentiment analysis, cryptocurrency market intelligence, bitcoin sentiment, ethereum sentiment, AI crypto analysis, market sentiment tracker, SentiMove, SentiChain API">
+  <meta name="author" content="SentiMove">
+  <meta name="robots" content="index, follow">
+  
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:title" content="SentiMove Intelligence - Real-Time Crypto Market Sentiment">
+  <meta property="og:description" content="Track cryptocurrency market sentiment in real-time with AI-powered analysis. Monitor macro events, industry trends, and price movements.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://sentimove.com/intelligence.html">
+  <meta property="og:image" content="https://sentimove.com/assets/images/og-intelligence.png">
+  <meta property="og:site_name" content="SentiMove">
+  <meta property="og:locale" content="en_US">
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="SentiMove Intelligence - Crypto Sentiment Analysis">
+  <meta name="twitter:description" content="Real-time cryptocurrency market sentiment analysis powered by AI. Track events affecting Bitcoin, Ethereum, and more.">
+  <meta name="twitter:image" content="https://sentimove.com/assets/images/twitter-intelligence.png">
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://sentimove.com/intelligence.html">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="alternate icon" href="favicon.ico">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="assets/css/intelligence.css">
+  
+  <!-- Chart.js for visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Chart.js time adapter for date handling -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "SentiMove Intelligence",
+    "description": "Real-time cryptocurrency market sentiment analysis tool powered by AI. Track sentiment events affecting Bitcoin, Ethereum, and other major cryptocurrencies.",
+    "url": "https://sentimove.com/intelligence.html",
+    "applicationCategory": "FinanceApplication",
+    "operatingSystem": "Web Browser",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": [
+      "Real-time sentiment analysis",
+      "Multiple cryptocurrency support",
+      "AI-powered event detection",
+      "Interactive price correlation charts",
+      "Historical data exploration"
+    ],
+    "screenshot": "https://sentimove.com/assets/images/intelligence-screenshot.png",
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "ratingCount": "250"
+    }
+  }
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <nav>
+        <a href="index.html" class="nav-link">← Back to Home</a>
+        <select id="symbolSelector" class="symbol-selector">
+          <option value="BTC">BTC</option>
+          <option value="ETH">ETH</option>
+          <option value="SOL">SOL</option>
+          <option value="XRP">XRP</option>
+          <option value="ADA">ADA</option>
+          <option value="AVAX">AVAX</option>
+          <option value="DOGE">DOGE</option>
+          <option value="TRX">TRX</option>
+          <option value="LINK">LINK</option>
+          <option value="DOT">DOT</option>
+        </select>
+      </nav>
+    </header>
+
+    <main>
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p id="loadingMessage">Connecting to SentiChain API...</p>
+        <p class="loading-detail" id="loadingDetail">Fetching market sentiment analysis</p>
+      </div>
+
+      <div class="content" id="content" style="display: none;">
+        <div class="main-layout">
+          <!-- Left side: Recent Events (40%) -->
+          <div class="events-section">
+            <div class="events-list">
+              <div id="eventsContainer"></div>
+            </div>
+          </div>
+
+          <!-- Right side: Chart (60%) -->
+          <div class="chart-section">
+            <div class="chart-container">
+              <div class="chunk-loading" id="chunkLoading">
+                <span class="chunk-loading-text">Loading historical data...</span>
+                <span class="chunk-loading-detail" id="chunkLoadingDetail"></span>
+              </div>
+              <canvas id="sentimentChart"></canvas>
+              <button class="chart-nav-btn chart-nav-left" id="loadEarlierBtn" title="Load earlier data">
+                <span>←</span>
+                <span class="click-counter" id="clickCounter">5</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="error" id="error" style="display: none;">
+        <h3>Error Loading Data</h3>
+        <p id="errorMessage"></p>
+        <button onclick="loadData()" class="retry-button">Retry</button>
+      </div>
+    </main>
+
+    <footer>
+      <div id="footer">SentiMove &copy; All Rights Reserved 2025</div>
+    </footer>
+  </div>
+
+  <script src="assets/js/intelligence.js"></script>
+</body>
+
+</html> 

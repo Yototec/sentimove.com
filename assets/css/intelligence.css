@@ -1,0 +1,729 @@
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #000000;
+    color: #ffffff;
+    line-height: 1.6;
+    height: 100vh;
+    overflow: hidden; /* Prevent body scrolling */
+}
+
+.container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Header styles */
+header {
+    padding: 10px 20px;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    color: #ffffff;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+nav {
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-link,
+.change-api-key-btn,
+.symbol-selector {
+    color: #ffffff;
+    text-decoration: none;
+    padding: 6px 14px;
+    border: 1px solid #666;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    display: inline-block;
+    font-size: 0.85rem;
+    background-color: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+}
+
+.symbol-selector {
+    min-width: 80px;
+}
+
+.symbol-selector option {
+    background-color: #111111;
+    color: #ffffff;
+}
+
+.nav-link:hover,
+.change-api-key-btn:hover,
+.symbol-selector:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: #ffffff;
+    transform: scale(1.05);
+}
+
+.symbol-selector:focus {
+    outline: none;
+    border-color: #ffffff;
+}
+
+.symbol-selector:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.symbol-selector:disabled:hover {
+    transform: none;
+    background-color: transparent;
+    border-color: #666;
+}
+
+/* Main content */
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0; /* Important for Firefox */
+}
+
+/* Content wrapper */
+.content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Main layout - side by side */
+.main-layout {
+    display: flex;
+    height: 100%;
+    gap: 20px;
+    padding: 20px;
+    overflow: hidden;
+    flex: 1;
+}
+
+/* Events section - Left side (30%) */
+.events-section {
+    width: 30%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Important for overflow to work */
+}
+
+/* Chart section - Right side (70%) */
+.chart-section {
+    width: 70%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Important for overflow to work */
+}
+
+/* Loading styles */
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.spinner {
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-top: 4px solid #ffffff;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading p {
+    color: #ffffff;
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+}
+
+.loading-detail {
+    color: #888888;
+    font-size: 0.9rem;
+    margin-top: 5px;
+}
+
+/* Chart container */
+.chart-container {
+    background: #000000;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    flex: 1;
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.9);
+}
+
+.chart-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+        radial-gradient(1px 1px at 20% 30%, white, transparent),
+        radial-gradient(1px 1px at 60% 70%, white, transparent),
+        radial-gradient(0.5px 0.5px at 50% 50%, white, transparent),
+        radial-gradient(0.5px 0.5px at 80% 20%, white, transparent),
+        radial-gradient(0.5px 0.5px at 10% 80%, white, transparent),
+        radial-gradient(1px 1px at 95% 40%, white, transparent),
+        radial-gradient(0.5px 0.5px at 40% 90%, white, transparent);
+    background-size: 200% 200%;
+    background-position: 50% 50%;
+    animation: twinkle 15s ease-in-out infinite;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.1; transform: scale(1.1); }
+}
+
+.chart-container canvas {
+    max-width: 100%;
+    max-height: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.chart-container h2 {
+    color: #ffffff;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.8rem;
+}
+
+#sentimentChart {
+    background-color: transparent;
+    border-radius: 5px;
+}
+
+/* Chart navigation buttons */
+.chart-nav-btn {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: none;
+    color: #cccccc;
+    width: auto;
+    min-width: 60px;
+    height: 36px;
+    padding: 0 8px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.3s ease;
+    z-index: 10;
+    border-radius: 0 4px 4px 0;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.chart-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.4);
+    border-left: none;
+    color: #ffffff;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.chart-nav-btn:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.chart-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.chart-nav-btn:disabled:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+    border-left: none;
+    color: #cccccc;
+    box-shadow: none;
+}
+
+.chart-nav-left {
+    /* No additional styles needed - positioned by parent */
+}
+
+.click-counter {
+    font-size: 12px;
+    font-weight: bold;
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+}
+
+/* Chunk loading indicator */
+.chunk-loading {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #ffffff;
+    padding: 8px 15px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    display: none;
+    z-index: 100;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chunk-loading.active {
+    display: flex;
+}
+
+.chunk-loading-detail {
+    color: #888888;
+    font-size: 0.75rem;
+}
+
+/* Data summary */
+.data-summary {
+    background-color: #111111;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.data-summary h3 {
+    color: #ffffff;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.5rem;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: #000000;
+    border: 1px solid #333;
+    border-radius: 5px;
+}
+
+.summary-item .label {
+    color: #cccccc;
+    font-weight: bold;
+}
+
+.summary-item .value {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+/* Events list */
+.events-list {
+    background: #000000;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+#eventsContainer {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 10px;
+    min-height: 0; /* Important for scrolling */
+}
+
+/* Custom scrollbar for events container */
+#eventsContainer::-webkit-scrollbar {
+    width: 8px;
+}
+
+#eventsContainer::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+#eventsContainer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+#eventsContainer::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.event-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+}
+
+.event-item:last-child {
+    margin-bottom: 0;
+}
+
+.event-item:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+.event-item.highlighted {
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+}
+
+.event-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.event-timestamp {
+    color: #cccccc;
+    font-size: 0.9rem;
+}
+
+.event-sentiment {
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.event-sentiment.bullish {
+    background-color: #004400;
+    color: #00ff00;
+}
+
+.event-sentiment.bearish {
+    background-color: #440000;
+    color: #ff0000;
+}
+
+.event-sentiment.neutral {
+    background-color: #333333;
+    color: #ffffff;
+}
+
+.event-summary {
+    color: #ffffff;
+    line-height: 1.4;
+}
+
+.event-footer {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.event-type {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+
+/* Event Type Legend */
+.event-type-legend {
+    background-color: #111111;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #000;
+}
+
+.legend-label {
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Error styles */
+.error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+}
+
+.error h3 {
+    color: #ff0000;
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+.error p {
+    color: #cccccc;
+    margin-bottom: 20px;
+}
+
+.retry-button {
+    background-color: #ffffff;
+    color: #000000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.retry-button:hover {
+    background-color: #cccccc;
+    transform: scale(1.05);
+}
+
+/* Footer */
+footer {
+    padding: 15px 20px;
+    border-top: 1px solid #333;
+    flex-shrink: 0;
+}
+
+#footer {
+    text-align: center;
+    color: #cccccc;
+    font-size: 12px;
+}
+
+/* API Key Modal */
+.api-key-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.api-key-modal-content {
+    background-color: #111111;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+}
+
+.api-key-modal-content h2 {
+    color: #ffffff;
+    margin-bottom: 20px;
+    font-size: 1.8rem;
+}
+
+.api-key-modal-content p {
+    color: #cccccc;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+#apiKeyInput {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    background-color: #000000;
+    border: 1px solid #333;
+    border-radius: 5px;
+    color: #ffffff;
+    margin-bottom: 20px;
+    font-family: monospace;
+}
+
+#apiKeyInput:focus {
+    outline: none;
+    border-color: #00FFC8;
+    box-shadow: 0 0 0 2px rgba(0, 255, 200, 0.2);
+}
+
+.api-key-modal-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.api-key-modal-buttons button {
+    background-color: #00FFC8;
+    color: #000000;
+    border: none;
+    padding: 10px 30px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.api-key-modal-buttons button:hover {
+    background-color: #00ccaa;
+    transform: scale(1.05);
+}
+
+.api-key-link {
+    color: #ffffff;
+    text-decoration: none;
+    padding: 10px 20px;
+    border: 1px solid #ffffff;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.api-key-link:hover {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.api-key-note {
+    color: #888888;
+    font-size: 0.9rem;
+    margin-top: 15px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .main-layout {
+        flex-direction: column;
+        padding: 15px;
+    }
+    
+    .events-section,
+    .chart-section {
+        width: 100%;
+    }
+    
+    .events-section {
+        height: 50%;
+        margin-bottom: 10px;
+    }
+    
+    .chart-section {
+        height: 50%;
+    }
+    
+    .chart-container {
+        padding: 15px;
+    }
+    
+    /* API Key Modal on mobile */
+    .api-key-modal-content {
+        padding: 20px;
+        width: 95%;
+    }
+    
+    .api-key-modal-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .api-key-modal-buttons button,
+    .api-key-link {
+        width: 100%;
+        text-align: center;
+    }
+    
+    /* Navigation adjustments */
+    nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .nav-link,
+    .change-api-key-btn,
+    .symbol-selector {
+        font-size: 0.8rem;
+        padding: 5px 12px;
+        margin: 2px;
+    }
+    
+    .symbol-selector {
+        min-width: 70px;
+    }
+} 
