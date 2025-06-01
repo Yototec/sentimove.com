@@ -301,6 +301,38 @@ main {
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
 }
 
+/* Constellation animation */
+@keyframes constellationGlow {
+    0% {
+        opacity: 0.15;
+        filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.2));
+    }
+    50% {
+        opacity: 0.5;
+        filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
+    }
+    100% {
+        opacity: 0.15;
+        filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.2));
+    }
+}
+
+/* Enhanced star glow animation */
+@keyframes starPulse {
+    0% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 5px currentColor);
+    }
+    50% {
+        transform: scale(1.2);
+        filter: drop-shadow(0 0 15px currentColor);
+    }
+    100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 5px currentColor);
+    }
+}
+
 .chart-nav-btn:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: rgba(255, 255, 255, 0.4);
@@ -559,6 +591,113 @@ main {
     color: #ffffff;
     font-size: 0.9rem;
     font-weight: 500;
+}
+
+/* Chunk Summary Styles */
+.chunk-summary {
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.chunk-summary-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 10px;
+}
+
+.summary-section {
+    margin-bottom: 25px;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.summary-type {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.summary-text {
+    color: #ffffff;
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+.summary-hint {
+    text-align: center;
+    color: #888888;
+    font-size: 0.85rem;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-style: italic;
+}
+
+/* Progressive constellation animation styles */
+@keyframes starGlow {
+    0% {
+        filter: brightness(1) drop-shadow(0 0 3px currentColor);
+    }
+    50% {
+        filter: brightness(1.5) drop-shadow(0 0 10px currentColor);
+    }
+    100% {
+        filter: brightness(1) drop-shadow(0 0 3px currentColor);
+    }
+}
+
+/* Canvas glow effect during animation */
+.chart-container.animating-constellation {
+    animation: subtleGlow 2s ease-in-out;
+}
+
+@keyframes subtleGlow {
+    0% {
+        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
+    }
+    50% {
+        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(255, 255, 255, 0.05);
+    }
+    100% {
+        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 60px rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* Custom scrollbar for summary content */
+.chunk-summary-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chunk-summary-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.chunk-summary-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.chunk-summary-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 /* Error styles */
@@ -917,6 +1056,25 @@ footer {
         font-size: 0.9rem;
         padding: 0 20px;
     }
+    
+    /* Chunk summary on mobile */
+    .chunk-summary {
+        padding: 15px;
+    }
+    
+    .summary-section {
+        margin-bottom: 20px;
+    }
+    
+    .summary-type {
+        font-size: 0.75rem;
+        padding: 4px 10px;
+    }
+    
+    .summary-text {
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
 }
 
 /* Small mobile screens */
@@ -1090,6 +1248,47 @@ footer {
     .change-api-key-btn:active,
     .chart-nav-btn:active {
         background-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Chart canvas touch feedback */
+    .chart-container canvas {
+        touch-action: pan-x pan-y;
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+    }
+    
+    /* Long press visual indicator */
+    .chart-container::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+    
+    .chart-container.touch-holding::after {
+        opacity: 1;
+        animation: touchRipple 0.5s ease-out;
+    }
+    
+    @keyframes touchRipple {
+        from {
+            width: 40px;
+            height: 40px;
+            opacity: 0.8;
+        }
+        to {
+            width: 80px;
+            height: 80px;
+            opacity: 1;
+        }
     }
 }
 

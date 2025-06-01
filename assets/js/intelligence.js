@@ -47,6 +47,17 @@ let loadedChunks = new Set();
 let isLoadingChunk = false;
 let leftButtonClickCount = 0; // Track number of left button clicks
 
+// Chunk summaries storage
+let chunkSummaries = {}; // Store summaries keyed by chunk range (e.g., "0-49")
+let currentHoveredChunk = null; // Track which chunk is being hovered
+let hoverTimer = null; // Timer for 2-second hover
+let isShowingSummary = false; // Track if we're showing summary view
+
+// Progressive constellation animation
+let constellationAnimationTimer = null; // Timer for progressive animation
+let animationProgress = 0; // Track animation progress (0-100)
+let isAnimatingConstellation = false; // Track if animation is in progress
+
 // API configuration
 const API_BASE = 'https://api.sentichain.com';
 let TICKER = 'BTC'; // Default ticker
@@ -325,11 +336,16 @@ async function loadData() {
         symbolSelector.disabled = true;
     }
     
+    // Stop any ongoing animations
+    stopProgressiveConstellation();
+    
     // Reset chunk tracking when loading new symbol
     loadedChunks.clear();
     allEventsData = [];
     marketData = {};
+    chunkSummaries = {}; // Reset chunk summaries
     leftButtonClickCount = 0; // Reset click counter for new symbol
+    isShowingSummary = false; // Reset summary view state
     
     try {
         // Step 1: Get available chunks
@@ -340,9 +356,16 @@ async function loadData() {
         updateLoadingMessage('Loading sentiment analysis...', `Processing ${TICKER} events (chunk ${chunkInfo.chunkIndex + 1} of ${availableChunks.length})`);
         const reasoningData = await fetchReasoningData(chunkInfo);
         
+        // Step 2.5: Get summary data for this chunk
+        const chunkKey = `${chunkInfo.chunk_start}-${chunkInfo.chunk_end}`;
+        const summaryData = await fetchSummaryData(chunkInfo.chunk_start, chunkInfo.chunk_end);
+        if (summaryData) {
+            chunkSummaries[chunkKey] = summaryData;
+        }
+        
         // Step 3: Process reasoning data
         updateLoadingMessage('Processing event data...', 'Analyzing sentiment patterns');
-        const processedEvents = processReasoningData(reasoningData);
+        const processedEvents = processReasoningData(reasoningData, chunkInfo);
         
         if (processedEvents.length === 0) {
             throw new Error('No events data found');
@@ -361,7 +384,6 @@ async function loadData() {
         marketData = marketDataResponse;
         
         // Mark initial chunk as loaded
-        const chunkKey = `${chunkInfo.chunk_start}-${chunkInfo.chunk_end}`;
         loadedChunks.add(chunkKey);
         
         // Step 7: Create visualization
@@ -449,8 +471,36 @@ async function fetchReasoningData(chunkInfo) {
     return data;
 }
 
+// Fetch summary data from API
+async function fetchSummaryData(chunkStart, chunkEnd) {
+    const url = `${API_BASE}/agent/get_reasoning?ticker=${TICKER}&summary_type=l3_event_sentiment_summary_reasoning&chunk_start=${chunkStart}&chunk_end=${chunkEnd}&api_key=${API_KEY}`;
+    
+    console.log(`Fetching summary data for ${TICKER} (chunk ${chunkStart}-${chunkEnd})...`);
+    
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch summary data: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // Parse the summary data
+        if (data.reasoning) {
+            const summaryArray = JSON.parse(data.reasoning);
+            if (summaryArray && summaryArray.length > 0) {
+                return summaryArray[0]; // Return the first (and likely only) summary object
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching summary data:', error);
+    }
+    
+    return null;
+}
+
 // Process reasoning data
-function processReasoningData(data) {
+function processReasoningData(data, chunkInfo) {
     try {
         // Parse the reasoning JSON string
         let eventsArray;
@@ -471,6 +521,13 @@ function processReasoningData(data) {
         if (!Array.isArray(eventsArray)) {
             throw new Error('Events data is not an array');
         }
+        
+        // Add chunk information to each event
+        const chunkKey = chunkInfo ? `${chunkInfo.chunk_start}-${chunkInfo.chunk_end}` : null;
+        eventsArray = eventsArray.map(event => ({
+            ...event,
+            chunkKey: chunkKey
+        }));
         
         // Sort by timestamp (all timestamps are UTC)
         eventsArray.sort((a, b) => new Date(a.timestamp + 'Z') - new Date(b.timestamp + 'Z'));
@@ -577,7 +634,7 @@ function createScatterPlot(events, marketData) {
         'asset': '#AAFFAA'       // Brighter Green
     };
     
-    // Prepare data points
+    // Prepare data points with chunk information
     const dataPoints = events.map((event, index) => {
         const price = findNearestMarketPrice(event.timestamp, marketData);
         
@@ -595,7 +652,8 @@ function createScatterPlot(events, marketData) {
             summary: event.summary,
             sentiment: event.sentiment,
             event: event.event,
-            eventIndex: index // Store original index
+            eventIndex: index, // Store original index
+            chunkKey: event.chunkKey // Use chunk key from event
         };
     }).filter(point => point.y !== null && point.y !== undefined); // Filter out points without price data
     
@@ -629,18 +687,45 @@ function createScatterPlot(events, marketData) {
     console.log(`Chart created with ${dataPoints.length} data points`);
     console.log(`Price range: $${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}`);
     
-    // Color points based on event type
-    const pointColors = dataPoints.map(point => {
-        return eventTypeColors[point.event.toLowerCase()] || '#ffffff';
+    // Create constellation datasets (line connections within chunks)
+    const constellationDatasets = [];
+    const chunkGroups = {};
+    
+    // Group points by chunk
+    dataPoints.forEach(point => {
+        if (point.chunkKey) {
+            if (!chunkGroups[point.chunkKey]) {
+                chunkGroups[point.chunkKey] = [];
+            }
+            chunkGroups[point.chunkKey].push(point);
+        }
     });
     
-    const pointHoverColors = dataPoints.map(point => {
-        return eventTypeHoverColors[point.event.toLowerCase()] || '#cccccc';
+    // Create line datasets for each chunk
+    Object.entries(chunkGroups).forEach(([chunkKey, points]) => {
+        if (points.length > 1) {
+            // Sort points by time
+            points.sort((a, b) => a.x - b.x);
+            
+            constellationDatasets.push({
+                label: `Constellation ${chunkKey}`,
+                data: points,
+                borderColor: 'rgba(255, 255, 255, 0.15)', // Thin white lines
+                borderWidth: 1,
+                pointRadius: 0, // Hide points for line datasets
+                pointHoverRadius: 0,
+                showLine: true,
+                fill: false,
+                tension: 0, // Straight lines
+                type: 'line',
+                order: 2 // Draw behind scatter points
+            });
+        }
     });
     
-    // Group data by event type for multiple datasets
+    // Group data by event type for scatter datasets
     const eventTypes = ['macro', 'industry', 'price', 'asset'];
-    const datasets = eventTypes.map(eventType => {
+    const scatterDatasets = eventTypes.map(eventType => {
         const typeData = dataPoints.filter(point => 
             point.event.toLowerCase() === eventType
         );
@@ -660,9 +745,14 @@ function createScatterPlot(events, marketData) {
             pointHoverBorderColor: 'rgba(255, 255, 255, 0.8)',
             pointHoverBorderWidth: 2,
             pointStyle: 'circle',
-            showLine: false
+            showLine: false,
+            type: 'scatter',
+            order: 1 // Draw above lines
         };
-    }).filter(dataset => dataset.data.length > 0); // Only include datasets with data
+    }).filter(dataset => dataset.data.length > 0);
+    
+    // Combine all datasets (constellations + scatter points)
+    const allDatasets = [...constellationDatasets, ...scatterDatasets];
     
     // Destroy existing chart if it exists
     if (sentimentChart) {
@@ -673,7 +763,7 @@ function createScatterPlot(events, marketData) {
     sentimentChart = new Chart(ctx, {
         type: 'scatter',
         data: {
-            datasets: datasets
+            datasets: allDatasets
         },
         options: {
             responsive: true,
@@ -693,6 +783,10 @@ function createScatterPlot(events, marketData) {
                         padding: 10,
                         font: {
                             size: 11
+                        },
+                        filter: function(item, chart) {
+                            // Hide constellation datasets from legend
+                            return !item.text.startsWith('Constellation');
                         }
                     },
                     position: 'top'
@@ -753,49 +847,256 @@ function createScatterPlot(events, marketData) {
             },
             onHover: (event, activeElements) => {
                 const canvas = event.native.target;
+                
+                // Clear any existing hover timer
+                if (hoverTimer) {
+                    clearTimeout(hoverTimer);
+                    hoverTimer = null;
+                }
+                
+                // Stop any ongoing animation if we're not hovering
+                if (activeElements.length === 0) {
+                    stopProgressiveConstellation();
+                }
+                
                 if (activeElements.length > 0) {
-                    canvas.style.cursor = 'pointer';
-                    const datasetIndex = activeElements[0].datasetIndex;
-                    const index = activeElements[0].index;
-                    const point = sentimentChart.data.datasets[datasetIndex].data[index];
-                    if (point.eventIndex !== undefined) {
-                        highlightEventItem(point.eventIndex);
+                    // Find the actual data point (skip constellation lines)
+                    let dataPoint = null;
+                    let datasetIndex = -1;
+                    let pointIndex = -1;
+                    
+                    for (const element of activeElements) {
+                        const dataset = sentimentChart.data.datasets[element.datasetIndex];
+                        if (dataset.type !== 'line' || dataset.label?.startsWith('Constellation') === false) {
+                            dataPoint = dataset.data[element.index];
+                            datasetIndex = element.datasetIndex;
+                            pointIndex = element.index;
+                            break;
+                        }
+                    }
+                    
+                    if (dataPoint) {
+                        canvas.style.cursor = 'pointer';
+                        
+                        // Immediate highlight of single event
+                        if (dataPoint.eventIndex !== undefined) {
+                            highlightEventItem(dataPoint.eventIndex);
+                        }
+                        
+                        // Check if we're hovering over a different chunk
+                        if (currentHoveredChunk !== dataPoint.chunkKey) {
+                            // Stop any existing animation
+                            stopProgressiveConstellation();
+                            currentHoveredChunk = dataPoint.chunkKey;
+                            
+                            // Start progressive constellation animation immediately
+                            if (dataPoint.chunkKey && !isShowingSummary) {
+                                startProgressiveConstellation(dataPoint.chunkKey);
+                            }
+                        }
                     }
                 } else {
                     canvas.style.cursor = 'default';
+                    currentHoveredChunk = null;
+                    
                     // Remove highlight when not hovering
-                    document.querySelectorAll('.event-item').forEach(item => {
-                        item.classList.remove('highlighted');
-                    });
-                }
-            },
-            onClick: (event, activeElements) => {
-                // Handle click/touch on chart points
-                if (activeElements.length > 0) {
-                    const datasetIndex = activeElements[0].datasetIndex;
-                    const index = activeElements[0].index;
-                    const point = sentimentChart.data.datasets[datasetIndex].data[index];
-                    if (point.eventIndex !== undefined) {
-                        // Clear all highlights first
+                    if (!isShowingSummary) {
                         document.querySelectorAll('.event-item').forEach(item => {
                             item.classList.remove('highlighted');
                         });
+                    }
+                }
+            },
+            onClick: (event, activeElements) => {
+                // If showing summary, clicking anywhere reverts to events view
+                if (isShowingSummary) {
+                    revertToEventsView();
+                    resetChartHighlights();
+                } else {
+                    // Normal click behavior
+                    if (activeElements.length > 0) {
+                        // Find the actual data point (skip constellation lines)
+                        let dataPoint = null;
                         
-                        // Highlight the clicked point's corresponding event
-                        highlightEventItem(point.eventIndex);
+                        for (const element of activeElements) {
+                            const dataset = sentimentChart.data.datasets[element.datasetIndex];
+                            if (dataset.type !== 'line' || dataset.label?.startsWith('Constellation') === false) {
+                                dataPoint = dataset.data[element.index];
+                                break;
+                            }
+                        }
                         
-                        // Keep the event highlighted for mobile
-                        if ('ontouchstart' in window) {
-                            setTimeout(() => {
-                                document.querySelectorAll('.event-item').forEach(item => {
-                                    item.classList.remove('highlighted');
-                                });
-                            }, 3000); // Remove after 3 seconds on mobile
+                        if (dataPoint && dataPoint.eventIndex !== undefined) {
+                            // Clear all highlights first
+                            document.querySelectorAll('.event-item').forEach(item => {
+                                item.classList.remove('highlighted');
+                            });
+                            
+                            // Highlight the clicked point's corresponding event
+                            highlightEventItem(dataPoint.eventIndex);
+                            
+                            // Keep the event highlighted for mobile
+                            if ('ontouchstart' in window) {
+                                setTimeout(() => {
+                                    document.querySelectorAll('.event-item').forEach(item => {
+                                        item.classList.remove('highlighted');
+                                    });
+                                }, 3000); // Remove after 3 seconds on mobile
+                            }
                         }
                     }
                 }
             }
         }
+    });
+    
+    // Store the data points for chunk animation
+    sentimentChart.starsByChunk = chunkGroups;
+    
+    // Add touch event handling for mobile long-press
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        addMobileTouchHandlers(ctx.canvas);
+    }
+}
+
+// Add mobile touch handlers for long-press detection
+function addMobileTouchHandlers(canvas) {
+    let touchStartTime = 0;
+    let touchTimer = null;
+    let touchedPoint = null;
+    let isTouchMoving = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    
+    const chartContainer = canvas.closest('.chart-container');
+    
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return; // Only handle single touch
+        
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        touchStartX = x;
+        touchStartY = y;
+        touchStartTime = Date.now();
+        isTouchMoving = false;
+        
+        // Find if we're touching a point
+        const canvasPosition = Chart.helpers.getRelativePosition(e, sentimentChart);
+        const datasetIndex = sentimentChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+        
+        if (datasetIndex.length > 0) {
+            const firstPoint = datasetIndex[0];
+            const dataset = sentimentChart.data.datasets[firstPoint.datasetIndex];
+            
+            // Skip constellation lines
+            if (dataset.type !== 'line' || !dataset.label?.startsWith('Constellation')) {
+                touchedPoint = dataset.data[firstPoint.index];
+                
+                // Add visual feedback for long press
+                chartContainer.classList.add('touch-holding');
+                
+                // Set up long press timer (500ms for mobile)
+                touchTimer = setTimeout(() => {
+                    if (!isTouchMoving && touchedPoint && touchedPoint.chunkKey) {
+                        // Haptic feedback if available
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
+                        
+                        // Stop any existing animation
+                        stopProgressiveConstellation();
+                        currentHoveredChunk = touchedPoint.chunkKey;
+                        
+                        // Start progressive constellation animation
+                        if (!isShowingSummary) {
+                            startProgressiveConstellation(touchedPoint.chunkKey);
+                        }
+                    }
+                }, 500); // 500ms for long press
+            }
+        }
+    });
+    
+    canvas.addEventListener('touchmove', (e) => {
+        if (e.touches.length !== 1) return;
+        
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        // Check if moved more than 10 pixels
+        const moveDistance = Math.sqrt(Math.pow(x - touchStartX, 2) + Math.pow(y - touchStartY, 2));
+        if (moveDistance > 10) {
+            isTouchMoving = true;
+            
+            // Remove visual feedback
+            chartContainer.classList.remove('touch-holding');
+            
+            // Cancel long press timer
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+                touchTimer = null;
+            }
+            
+            // Stop any ongoing animation
+            stopProgressiveConstellation();
+        }
+    });
+    
+    canvas.addEventListener('touchend', (e) => {
+        const touchDuration = Date.now() - touchStartTime;
+        
+        // Remove visual feedback
+        chartContainer.classList.remove('touch-holding');
+        
+        // Clear long press timer
+        if (touchTimer) {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+        }
+        
+        // If it was a quick tap (less than 500ms) and not moving
+        if (touchDuration < 500 && !isTouchMoving && touchedPoint) {
+            // Handle as a normal click - highlight the event
+            if (touchedPoint.eventIndex !== undefined) {
+                // Clear all highlights first
+                document.querySelectorAll('.event-item').forEach(item => {
+                    item.classList.remove('highlighted');
+                });
+                
+                // Highlight the clicked point's corresponding event
+                highlightEventItem(touchedPoint.eventIndex);
+                
+                // Keep the event highlighted for 3 seconds on mobile
+                setTimeout(() => {
+                    document.querySelectorAll('.event-item').forEach(item => {
+                        item.classList.remove('highlighted');
+                    });
+                }, 3000);
+            }
+        }
+        
+        // Reset
+        touchedPoint = null;
+        isTouchMoving = false;
+    });
+    
+    canvas.addEventListener('touchcancel', () => {
+        // Remove visual feedback
+        chartContainer.classList.remove('touch-holding');
+        
+        // Clear any timers and reset state
+        if (touchTimer) {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+        }
+        touchedPoint = null;
+        isTouchMoving = false;
+        stopProgressiveConstellation();
     });
 }
 
@@ -980,6 +1281,266 @@ function resetChartHighlights() {
     sentimentChart.update('none'); // Update without animation for smoother hover
 }
 
+// Show chunk summary in the left panel
+function showChunkSummary(chunkKey) {
+    const summary = chunkSummaries[chunkKey];
+    if (!summary) {
+        console.warn(`No summary found for chunk ${chunkKey}`);
+        return;
+    }
+    
+    isShowingSummary = true;
+    
+    const container = document.getElementById('eventsContainer');
+    container.innerHTML = '';
+    
+    // Create summary display
+    const summaryElement = document.createElement('div');
+    summaryElement.className = 'chunk-summary';
+    summaryElement.innerHTML = `
+        <div class="chunk-summary-content">
+            ${createSummarySection('Macro', summary.macro, '#FF8888')}
+            ${createSummarySection('Industry', summary.industry, '#88FFFF')}
+            ${createSummarySection('Price', summary.price, '#FFFF88')}
+            ${createSummarySection('Asset', summary.asset, '#88FF88')}
+        </div>
+    `;
+    
+    container.appendChild(summaryElement);
+}
+
+// Create a summary section for a specific event type
+function createSummarySection(type, content, color) {
+    if (!content || content === 'none') {
+        return ''; // Don't show sections with no content
+    }
+    
+    return `
+        <div class="summary-section">
+            <div class="summary-type" style="background-color: ${color}; color: #000000;">
+                ${type.toUpperCase()}
+            </div>
+            <div class="summary-text">${content}</div>
+        </div>
+    `;
+}
+
+// Animate stars in a chunk
+function animateChunkStars(chunkKey) {
+    if (!sentimentChart || !sentimentChart.starsByChunk) return;
+    
+    const chunkPoints = sentimentChart.starsByChunk[chunkKey];
+    if (!chunkPoints || chunkPoints.length === 0) return;
+    
+    // Find all datasets that contain points from this chunk
+    sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type === 'scatter' || !dataset.type) {
+            // Create arrays for radius and border width if not already arrays
+            if (!Array.isArray(dataset.pointRadius)) {
+                dataset.pointRadius = new Array(dataset.data.length).fill(6);
+            }
+            if (!Array.isArray(dataset.pointBorderWidth)) {
+                dataset.pointBorderWidth = new Array(dataset.data.length).fill(1);
+            }
+            
+            // Enlarge points that belong to this chunk
+            dataset.data.forEach((point, index) => {
+                if (point.chunkKey === chunkKey) {
+                    dataset.pointRadius[index] = 12; // Larger size for chunk animation
+                    dataset.pointBorderWidth[index] = 3;
+                }
+            });
+        }
+        // Make constellation lines more prominent
+        else if (dataset.type === 'line' && dataset.label === `Constellation ${chunkKey}`) {
+            dataset.borderColor = 'rgba(255, 255, 255, 0.5)'; // Brighter white
+            dataset.borderWidth = 2; // Thicker line
+        }
+    });
+    
+    sentimentChart.update('none');
+}
+
+// Revert from summary view back to events view
+function revertToEventsView() {
+    isShowingSummary = false;
+    currentHoveredChunk = null;
+    
+    // Clear hover timer
+    if (hoverTimer) {
+        clearTimeout(hoverTimer);
+        hoverTimer = null;
+    }
+    
+    // Stop any ongoing progressive animation
+    stopProgressiveConstellation();
+    
+    // Restore events display
+    displayEvents(allEventsData);
+    
+    // Reset chart appearance
+    resetChunkAnimation();
+}
+
+// Reset chunk animation
+function resetChunkAnimation() {
+    if (!sentimentChart) return;
+    
+    sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type === 'scatter' || !dataset.type) {
+            // Reset all points to normal size
+            if (Array.isArray(dataset.pointRadius)) {
+                dataset.pointRadius.fill(6);
+            } else {
+                dataset.pointRadius = 6;
+            }
+            
+            if (Array.isArray(dataset.pointBorderWidth)) {
+                dataset.pointBorderWidth.fill(1);
+            } else {
+                dataset.pointBorderWidth = 1;
+            }
+        }
+        // Reset constellation lines
+        else if (dataset.type === 'line' && dataset.label?.startsWith('Constellation')) {
+            dataset.borderColor = 'rgba(255, 255, 255, 0.15)'; // Back to thin white
+            dataset.borderWidth = 1;
+        }
+    });
+    
+    sentimentChart.update('none');
+}
+
+// Progressive constellation animation
+function startProgressiveConstellation(chunkKey) {
+    if (!sentimentChart || !sentimentChart.starsByChunk) return;
+    
+    const chunkPoints = sentimentChart.starsByChunk[chunkKey];
+    if (!chunkPoints || chunkPoints.length === 0) return;
+    
+    // Reset animation state
+    animationProgress = 0;
+    isAnimatingConstellation = true;
+    
+    // Add animation class to chart container
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) {
+        chartContainer.classList.add('animating-constellation');
+    }
+    
+    // Sort points by time for sequential animation
+    const sortedPoints = [...chunkPoints].sort((a, b) => a.x - b.x);
+    const totalPoints = sortedPoints.length;
+    
+    // Clear any existing animation timer
+    if (constellationAnimationTimer) {
+        clearInterval(constellationAnimationTimer);
+    }
+    
+    // Calculate animation intervals
+    const animationDuration = 2000; // 2 seconds total
+    const updateInterval = 50; // Update every 50ms
+    const progressPerUpdate = 100 / (animationDuration / updateInterval);
+    
+    // Find constellation line dataset
+    let constellationDataset = null;
+    sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type === 'line' && dataset.label === `Constellation ${chunkKey}`) {
+            constellationDataset = dataset;
+            // Start with invisible line
+            dataset.borderColor = 'rgba(255, 255, 255, 0)';
+            dataset.borderWidth = 1;
+        }
+    });
+    
+    // Reset all points in the chunk to normal size first
+    sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type === 'scatter' || !dataset.type) {
+            if (!Array.isArray(dataset.pointRadius)) {
+                dataset.pointRadius = new Array(dataset.data.length).fill(6);
+            }
+            if (!Array.isArray(dataset.pointBorderWidth)) {
+                dataset.pointBorderWidth = new Array(dataset.data.length).fill(1);
+            }
+        }
+    });
+    
+    // Progressive animation timer
+    constellationAnimationTimer = setInterval(() => {
+        animationProgress += progressPerUpdate;
+        
+        if (animationProgress >= 100) {
+            animationProgress = 100;
+            isAnimatingConstellation = false;
+            clearInterval(constellationAnimationTimer);
+            
+            // Trigger the full animation and summary display
+            if (currentHoveredChunk === chunkKey && !isShowingSummary) {
+                showChunkSummary(chunkKey);
+                animateChunkStars(chunkKey);
+            }
+            return;
+        }
+        
+        // Calculate how many points should be lit based on progress
+        const pointsToLight = Math.floor((animationProgress / 100) * totalPoints);
+        
+        // Light up constellation line progressively
+        if (constellationDataset) {
+            const lineOpacity = Math.min(0.5, (animationProgress / 100) * 0.5);
+            const lineWidth = 1 + (animationProgress / 100); // 1 to 2
+            constellationDataset.borderColor = `rgba(255, 255, 255, ${lineOpacity})`;
+            constellationDataset.borderWidth = lineWidth;
+            
+            // Add glow effect
+            if (animationProgress > 50) {
+                const glowIntensity = (animationProgress - 50) / 50;
+                constellationDataset.borderColor = `rgba(255, 255, 255, ${lineOpacity + glowIntensity * 0.2})`;
+            }
+        }
+        
+        // Light up points progressively
+        for (let i = 0; i < pointsToLight && i < sortedPoints.length; i++) {
+            const point = sortedPoints[i];
+            
+            // Find and animate this point in all datasets
+            sentimentChart.data.datasets.forEach(dataset => {
+                if (dataset.type === 'scatter' || !dataset.type) {
+                    dataset.data.forEach((dataPoint, index) => {
+                        if (dataPoint.x === point.x && dataPoint.y === point.y) {
+                            // Progressive size increase
+                            const sizeFactor = 1 + (i / totalPoints) * 0.5; // Up to 1.5x size
+                            dataset.pointRadius[index] = 6 * sizeFactor + Math.sin(animationProgress * 0.1) * 2;
+                            dataset.pointBorderWidth[index] = 1 + (i / totalPoints) * 2;
+                        }
+                    });
+                }
+            });
+        }
+        
+        sentimentChart.update('none');
+    }, updateInterval);
+}
+
+// Stop progressive constellation animation
+function stopProgressiveConstellation() {
+    if (constellationAnimationTimer) {
+        clearInterval(constellationAnimationTimer);
+        constellationAnimationTimer = null;
+    }
+    animationProgress = 0;
+    isAnimatingConstellation = false;
+    
+    // Reset constellation appearance
+    resetChunkAnimation();
+    
+    // Remove animation class from chart container
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) {
+        chartContainer.classList.remove('animating-constellation');
+    }
+}
+
 // UI state management
 function showLoading() {
     document.getElementById('loading').style.display = 'flex';
@@ -1056,9 +1617,15 @@ async function loadAdditionalChunk(chunkIndex) {
         
         // Fetch reasoning data for this chunk
         const reasoningData = await fetchReasoningData(chunk);
-        const processedEvents = processReasoningData(reasoningData);
+        const processedEvents = processReasoningData(reasoningData, chunk);
         
         if (processedEvents.length > 0) {
+            // Fetch summary data for this chunk
+            const summaryData = await fetchSummaryData(chunk.chunk_start, chunk.chunk_end);
+            if (summaryData) {
+                chunkSummaries[chunkKey] = summaryData;
+            }
+            
             // Update loading detail with processing info
             if (loadingDetail) {
                 // Get date range from these events
