@@ -780,7 +780,7 @@ function createScatterPlot(events, marketData) {
                     display: false
                 },
                 legend: {
-                    display: !isMobile, // Hide legend on mobile
+                    display: false, // Completely disabled on all devices
                     labels: {
                         color: '#cccccc',
                         usePointStyle: true,
