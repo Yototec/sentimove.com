@@ -520,6 +520,9 @@ function findNearestMarketPrice(eventTimestamp, marketData) {
 function createScatterPlot(events, marketData) {
     const ctx = document.getElementById('sentimentChart').getContext('2d');
     
+    // Check if we're on mobile
+    const isMobile = window.innerWidth <= 768;
+    
     // Define colors for each event type
     const eventTypeColors = {
         'macro': '#FF8888',      // Bright Red
@@ -645,6 +648,7 @@ function createScatterPlot(events, marketData) {
                     display: false
                 },
                 legend: {
+                    display: !isMobile, // Hide legend on mobile
                     labels: {
                         color: '#cccccc',
                         usePointStyle: true,
