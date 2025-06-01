@@ -1,3 +1,41 @@
+// iOS Viewport Height Fix
+(function() {
+    // Function to set the correct viewport height
+    function setViewportHeight() {
+        // First we get the viewport height and multiply it by 1% to get a value for a vh unit
+        let vh = window.innerHeight * 0.01;
+        // Then we set the value in the --vh custom property to the root of the document
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        
+        // Also set the CSS variable for the actual viewport height
+        document.documentElement.style.setProperty('--real-viewport-height', `${window.innerHeight}px`);
+    }
+
+    // Set the viewport height on load
+    setViewportHeight();
+
+    // Update on resize and orientation change
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', function() {
+        setTimeout(setViewportHeight, 100); // Small delay to ensure the orientation has changed
+    });
+
+    // iOS specific: Update when the address bar hides/shows
+    let lastHeight = window.innerHeight;
+    setInterval(function() {
+        if (window.innerHeight !== lastHeight) {
+            lastHeight = window.innerHeight;
+            setViewportHeight();
+        }
+    }, 100);
+
+    // Detect if it's iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+        document.documentElement.classList.add('ios-device');
+    }
+})();
+
 // Intelligence page JavaScript
 let sentimentChart = null;
 let allEventsData = [];

@@ -5,9 +5,17 @@
     box-sizing: border-box;
 }
 
+/* Custom properties for viewport height */
+:root {
+    --vh: 1vh; /* Fallback */
+    --real-viewport-height: 100vh; /* Fallback */
+}
+
 /* Add smooth scrolling for the entire page */
 html {
     scroll-behavior: smooth;
+    /* Prevent iOS Safari from zooming on inputs */
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -16,15 +24,28 @@ body {
     color: #ffffff;
     line-height: 1.6;
     height: 100vh;
+    /* Use -webkit-fill-available for iOS Safari */
+    height: -webkit-fill-available;
+    /* Use custom property for accurate height */
+    height: var(--real-viewport-height);
     overflow: hidden; /* Prevent body scrolling */
     -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+    /* Add safe area support for iOS devices with notch */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
 }
 
 .container {
     height: 100vh;
+    height: -webkit-fill-available;
+    height: var(--real-viewport-height);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    /* Ensure container respects safe areas */
+    position: relative;
 }
 
 /* Header styles */
@@ -32,6 +53,11 @@ header {
     padding: 10px 20px;
     border-bottom: 1px solid #333;
     flex-shrink: 0;
+    /* Ensure header is always visible on iOS */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: #000000;
 }
 
 header h1 {
@@ -566,6 +592,11 @@ footer {
     padding: 15px 20px;
     border-top: 1px solid #333;
     flex-shrink: 0;
+    background-color: #000000;
+    /* Ensure footer is always at the bottom */
+    margin-top: auto;
+    /* Add safe area for bottom on iOS */
+    padding-bottom: calc(15px + env(safe-area-inset-bottom));
 }
 
 #footer {
@@ -679,6 +710,16 @@ footer {
     .container {
         height: 100vh;
         height: 100dvh; /* Dynamic viewport height for mobile browsers */
+        height: -webkit-fill-available; /* iOS Safari specific */
+        min-height: -webkit-fill-available;
+    }
+    
+    /* Body adjustments for mobile */
+    body {
+        /* Reset safe area padding on mobile for better space usage */
+        padding: 0;
+        /* Apply safe areas only where needed */
+        padding-top: env(safe-area-inset-top);
     }
     
     /* Header adjustments */
@@ -689,6 +730,15 @@ footer {
         background-color: rgba(0, 0, 0, 0.95);
         backdrop-filter: blur(10px);
         z-index: 100;
+        /* Add safe area for top */
+        padding-top: calc(10px + env(safe-area-inset-top));
+    }
+    
+    /* Main content adjustment */
+    main {
+        /* Calculate height accounting for safe areas */
+        height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     }
     
     /* Main layout changes */
@@ -696,7 +746,10 @@ footer {
         flex-direction: column;
         padding: 10px;
         gap: 10px;
-        height: calc(100vh - 120px); /* Account for header and footer */
+        /* Use available height minus header and footer */
+        height: auto;
+        flex: 1;
+        min-height: 0;
     }
     
     /* Events section on mobile */
@@ -960,6 +1013,8 @@ footer {
     
     .main-layout {
         height: calc(100vh - 100px);
+        /* iOS Safari fix */
+        height: calc(100dvh - 100px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     }
 }
 
@@ -1003,4 +1058,47 @@ footer {
     .event-item {
         border-width: 0.5px;
     }
+}
+
+/* iOS specific fixes */
+.ios-device .container {
+    height: calc(var(--vh, 1vh) * 100);
+    min-height: calc(var(--vh, 1vh) * 100);
+}
+
+.ios-device body {
+    height: calc(var(--vh, 1vh) * 100);
+    position: fixed;
+    width: 100%;
+}
+
+.ios-device main {
+    height: auto;
+    flex: 1;
+}
+
+.ios-device .main-layout {
+    height: 100%;
+}
+
+/* iOS landscape specific */
+@media (max-width: 768px) and (orientation: landscape) {
+    .ios-device .container {
+        height: calc(var(--vh, 1vh) * 100);
+    }
+    
+    .ios-device .main-layout {
+        height: calc(100% - 60px); /* Reduced height for smaller header/footer in landscape */
+    }
+}
+
+/* Prevent overscroll bounce on iOS */
+.ios-device body {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+}
+
+.ios-device .container {
+    -webkit-overflow-scrolling: touch;
 } 
