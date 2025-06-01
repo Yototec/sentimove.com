@@ -118,8 +118,8 @@ function createRedirectOverlay() {
 
 // Check if mouse is over the sphere
 function isMouseOverSphere(event) {
-    // Don't check during transitions or on mobile
-    if (isTransitioning || isMobileView || isRedirecting) return false;
+    // Don't check on mobile or if already redirecting
+    if (isMobileView || isRedirecting) return false;
     
     // Update mouse coordinates
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -270,8 +270,8 @@ document.addEventListener('mousemove', (event) => {
 
         targetRotationY -= deltaX * 0.01;
         targetRotationX -= deltaY * 0.01;
-    } else if (!isMobileView && !isTransitioning) {
-        // Check if hovering over sphere when not dragging
+    } else if (!isMobileView) {
+        // Check if hovering over sphere when not dragging (works during transitions too)
         if (isMouseOverSphere(event)) {
             // Start hover timer
             redirectHoverTimer = setTimeout(() => {
