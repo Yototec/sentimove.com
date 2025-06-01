@@ -3,6 +3,10 @@ const scene = new THREE.Scene();
 let isMobileView = window.innerWidth < 768;
 console.log("Initial mobile detection:", isMobileView, "Width:", window.innerWidth);
 
+// Add ambient light to improve star visibility, especially on mobile
+const ambientLight = new THREE.AmbientLight(0xffffff, isMobileView ? 0.3 : 0.1);
+scene.add(ambientLight);
+
 const sphereRadius = 100;
 
 const camera = new THREE.PerspectiveCamera(
@@ -41,6 +45,195 @@ const lineGrowthSpeedFast = 0.08; // Increased speed for faster animation
 const lineRevealIntraClusterDelay = 40; // Much shorter delay between lines in same cluster
 const lineRevealInterClusterDelay = 100; // Delay between different clusters starting
 
+// Variables for sphere hover redirect feature
+let isRedirecting = false;
+let redirectHoverTimer = null;
+let redirectTransitionTimer = null;
+let lastMouseMoveTime = Date.now();
+let mouseHasMovedRecently = true;
+const HOVER_DELAY = 1000; // 1 second hover delay
+const REDIRECT_TRANSITION_DURATION = 2000; // 2 second transition
+let redirectOverlay = null;
+let redirectSpinner = null;
+let redirectText = null;
+
+// Variables for touch-based redirect on mobile
+let touchRedirectTimer = null;
+let touchStartTime = 0;
+let isTouchingForRedirect = false;
+let touchStartX = 0;
+let touchStartY = 0;
+const TOUCH_MOVE_THRESHOLD = 10; // pixels - how much movement cancels the redirect
+
+// Raycaster for detecting sphere hover
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// Create redirect overlay elements
+function createRedirectOverlay() {
+    // Create overlay container
+    redirectOverlay = document.createElement('div');
+    redirectOverlay.style.position = 'fixed';
+    redirectOverlay.style.top = '0';
+    redirectOverlay.style.left = '0';
+    redirectOverlay.style.width = '100%';
+    redirectOverlay.style.height = '100%';
+    redirectOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+    redirectOverlay.style.transition = 'background-color 2s ease-in-out';
+    redirectOverlay.style.pointerEvents = 'none';
+    redirectOverlay.style.zIndex = '1000';
+    redirectOverlay.style.display = 'none';
+    
+    // Create spinner container
+    const spinnerContainer = document.createElement('div');
+    spinnerContainer.style.position = 'absolute';
+    spinnerContainer.style.top = '50%';
+    spinnerContainer.style.left = '50%';
+    spinnerContainer.style.transform = 'translate(-50%, -50%)';
+    spinnerContainer.style.textAlign = 'center';
+    spinnerContainer.style.opacity = '0';
+    spinnerContainer.style.transition = 'opacity 0.5s ease-in-out';
+    
+    // Create spinner (similar to intelligence page)
+    redirectSpinner = document.createElement('div');
+    redirectSpinner.style.border = '4px solid rgba(255, 255, 255, 0.1)';
+    redirectSpinner.style.borderTop = '4px solid #ffffff';
+    redirectSpinner.style.borderRadius = '50%';
+    redirectSpinner.style.width = '50px';
+    redirectSpinner.style.height = '50px';
+    redirectSpinner.style.margin = '0 auto 20px';
+    redirectSpinner.style.animation = 'spin 1s linear infinite';
+    
+    // Create text
+    redirectText = document.createElement('p');
+    redirectText.style.color = '#ffffff';
+    redirectText.style.fontSize = '1.2rem';
+    redirectText.style.fontFamily = 'Arial, sans-serif';
+    redirectText.textContent = 'Redirecting to Intelligence';
+    
+    // Add spinner animation if not already defined
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(styleSheet);
+    
+    // Assemble elements
+    spinnerContainer.appendChild(redirectSpinner);
+    spinnerContainer.appendChild(redirectText);
+    redirectOverlay.appendChild(spinnerContainer);
+    document.body.appendChild(redirectOverlay);
+}
+
+// Check if mouse is over the sphere
+function isMouseOverSphere(event) {
+    // Don't check on mobile or if already redirecting
+    if (isMobileView || isRedirecting) return false;
+    
+    // Update mouse coordinates
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    // Update raycaster
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Create an invisible sphere at origin to test intersection
+    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+    const sphereMesh = new THREE.Mesh(sphereGeometry);
+    sphereMesh.position.set(0, 0, 0);
+    
+    // Check intersection
+    const intersects = raycaster.intersectObject(sphereMesh);
+    
+    // Clean up
+    sphereGeometry.dispose();
+    
+    return intersects.length > 0;
+}
+
+// Check if touch point is over the sphere
+function isTouchOverSphere(touch) {
+    // Don't check if already redirecting
+    if (isRedirecting) return false;
+    
+    // Update mouse coordinates from touch
+    mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+    
+    // Update raycaster
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Create an invisible sphere at origin to test intersection
+    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+    const sphereMesh = new THREE.Mesh(sphereGeometry);
+    sphereMesh.position.set(0, 0, 0);
+    
+    // Check intersection
+    const intersects = raycaster.intersectObject(sphereMesh);
+    
+    // Clean up
+    sphereGeometry.dispose();
+    
+    return intersects.length > 0;
+}
+
+// Start redirect process
+function startRedirect() {
+    if (isRedirecting) return;
+    
+    isRedirecting = true;
+    redirectOverlay.style.display = 'block';
+    
+    // Start transition after a brief delay
+    setTimeout(() => {
+        redirectOverlay.style.backgroundColor = 'rgba(0, 0, 0, 1)';
+        redirectOverlay.querySelector('div').style.opacity = '1';
+    }, 50);
+    
+    // Set timer for actual redirect
+    redirectTransitionTimer = setTimeout(() => {
+        window.location.href = 'intelligence.html';
+    }, REDIRECT_TRANSITION_DURATION);
+}
+
+// Cancel redirect process
+function cancelRedirect() {
+    if (!isRedirecting) return;
+    
+    isRedirecting = false;
+    
+    // Clear timers
+    if (redirectHoverTimer) {
+        clearTimeout(redirectHoverTimer);
+        redirectHoverTimer = null;
+    }
+    
+    if (redirectTransitionTimer) {
+        clearTimeout(redirectTransitionTimer);
+        redirectTransitionTimer = null;
+    }
+    
+    // Fade out overlay
+    redirectOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+    redirectOverlay.querySelector('div').style.opacity = '0';
+    
+    // Hide overlay after transition
+    setTimeout(() => {
+        redirectOverlay.style.display = 'none';
+    }, 500);
+}
+
+// Initialize redirect overlay on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    if (!isMobileView) {
+        document.body.style.cursor = 'grab'; // Set initial cursor style for desktop
+    }
+    createRedirectOverlay(); // Initialize redirect overlay
+});
+
 camera.position.z = cameraDistance;
 camera.position.y = 0;
 camera.position.x = 0;
@@ -58,7 +251,10 @@ vignetteContainer.style.width = '100%';
 vignetteContainer.style.height = '100%';
 vignetteContainer.style.pointerEvents = 'none';
 vignetteContainer.style.borderRadius = '50%';
-vignetteContainer.style.boxShadow = 'inset 0 0 150px 150px rgba(0, 0, 0, 0.95)';
+// Reduce vignette intensity on mobile for better star visibility
+vignetteContainer.style.boxShadow = isMobileView ? 
+    'inset 0 0 80px 80px rgba(0, 0, 0, 0.7)' : 
+    'inset 0 0 150px 150px rgba(0, 0, 0, 0.95)';
 vignetteContainer.style.zIndex = '10';
 document.body.appendChild(vignetteContainer);
 
@@ -88,6 +284,22 @@ document.addEventListener('mousedown', (event) => {
 });
 
 document.addEventListener('mousemove', (event) => {
+    // Track mouse movement time
+    lastMouseMoveTime = Date.now();
+    mouseHasMovedRecently = true;
+    
+    // Cancel any ongoing redirect if mouse moves
+    if (isRedirecting) {
+        cancelRedirect();
+    }
+    
+    // Clear hover timer if mouse moves
+    if (redirectHoverTimer) {
+        clearTimeout(redirectHoverTimer);
+        redirectHoverTimer = null;
+    }
+    
+    // Handle dragging
     if (isMouseDragging) {
         const mouseX = event.clientX;
         const mouseY = event.clientY;
@@ -99,12 +311,36 @@ document.addEventListener('mousemove', (event) => {
 
         targetRotationY -= deltaX * 0.01;
         targetRotationX -= deltaY * 0.01;
+    } else if (!isMobileView) {
+        // Check if hovering over sphere when not dragging (works during transitions too)
+        if (isMouseOverSphere(event)) {
+            // Start hover timer
+            redirectHoverTimer = setTimeout(() => {
+                // Check if mouse is still over sphere and hasn't moved
+                const timeSinceLastMove = Date.now() - lastMouseMoveTime;
+                if (timeSinceLastMove >= HOVER_DELAY - 50 && isMouseOverSphere(event)) {
+                    startRedirect();
+                }
+            }, HOVER_DELAY);
+            
+            // Change cursor to indicate interactive area
+            document.body.style.cursor = 'pointer';
+        } else {
+            // Reset cursor when not over sphere
+            document.body.style.cursor = 'grab';
+        }
     }
 });
 
-document.addEventListener('mouseup', () => {
+document.addEventListener('mouseup', (event) => {
     isMouseDragging = false;
-    document.body.style.cursor = 'grab'; // Change cursor back to indicate grabbable
+    
+    // Check if we're over the sphere to set appropriate cursor
+    if (!isMobileView && !isTransitioning && isMouseOverSphere(event)) {
+        document.body.style.cursor = 'pointer';
+    } else {
+        document.body.style.cursor = 'grab';
+    }
 });
 
 document.addEventListener('mouseleave', () => {
@@ -112,11 +348,15 @@ document.addEventListener('mouseleave', () => {
         isMouseDragging = false;
         document.body.style.cursor = 'grab'; // Ensure cursor reverts if mouse leaves window
     }
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    if (!isMobileView) {
-        document.body.style.cursor = 'grab'; // Set initial cursor style for desktop
+    
+    // Cancel redirect if mouse leaves window
+    if (redirectHoverTimer) {
+        clearTimeout(redirectHoverTimer);
+        redirectHoverTimer = null;
+    }
+    
+    if (isRedirecting) {
+        cancelRedirect();
     }
 });
 
@@ -127,11 +367,46 @@ document.addEventListener('touchstart', (event) => {
         event.target.closest('#sliderContainer')) return;
 
     if (event.touches.length === 1) {
+        const touch = event.touches[0];
         isTouching = true;
-        lastTouchX = event.touches[0].clientX;
-        lastTouchY = event.touches[0].clientY;
+        lastTouchX = touch.clientX;
+        lastTouchY = touch.clientY;
+        
+        // For mobile redirect: check if touching the sphere
+        if (isMobileView && isTouchOverSphere(touch)) {
+            // Prevent iOS context menu
+            event.preventDefault();
+            
+            // Start tracking for redirect
+            isTouchingForRedirect = true;
+            touchStartTime = Date.now();
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            
+            // Clear any existing timer
+            if (touchRedirectTimer) {
+                clearTimeout(touchRedirectTimer);
+            }
+            
+            // Start the 1-second timer for redirect
+            touchRedirectTimer = setTimeout(() => {
+                // Check if still touching and on sphere
+                if (isTouchingForRedirect && event.touches.length === 1) {
+                    const currentTouch = event.touches[0];
+                    const moveDistance = Math.sqrt(
+                        Math.pow(currentTouch.clientX - touchStartX, 2) + 
+                        Math.pow(currentTouch.clientY - touchStartY, 2)
+                    );
+                    
+                    // If hasn't moved much and still on sphere
+                    if (moveDistance < TOUCH_MOVE_THRESHOLD && isTouchOverSphere(currentTouch)) {
+                        startRedirect();
+                    }
+                }
+            }, HOVER_DELAY);
+        }
     }
-}, { passive: true });
+}, { passive: false }); // Changed to non-passive to allow preventDefault
 
 document.addEventListener('touchmove', (event) => {
     if (event.target.closest('.cluster-labels-container') ||
@@ -149,11 +424,60 @@ document.addEventListener('touchmove', (event) => {
         targetRotationY -= deltaX * 0.01;
         targetRotationX -= deltaY * 0.01;
         event.preventDefault();
+        
+        // Check if we need to cancel redirect
+        if (isTouchingForRedirect) {
+            const moveDistance = Math.sqrt(
+                Math.pow(touchX - touchStartX, 2) + 
+                Math.pow(touchY - touchStartY, 2)
+            );
+            
+            // Cancel if moved too much or no longer on sphere
+            if (moveDistance > TOUCH_MOVE_THRESHOLD || !isTouchOverSphere(event.touches[0])) {
+                isTouchingForRedirect = false;
+                if (touchRedirectTimer) {
+                    clearTimeout(touchRedirectTimer);
+                    touchRedirectTimer = null;
+                }
+                if (isRedirecting) {
+                    cancelRedirect();
+                }
+            }
+        }
     }
 }, { passive: false });
 
 document.addEventListener('touchend', () => {
     isTouching = false;
+    
+    // Cancel redirect if touch ends
+    if (isTouchingForRedirect) {
+        isTouchingForRedirect = false;
+        if (touchRedirectTimer) {
+            clearTimeout(touchRedirectTimer);
+            touchRedirectTimer = null;
+        }
+        if (isRedirecting) {
+            cancelRedirect();
+        }
+    }
+}, { passive: true });
+
+// Handle touch cancel (e.g., incoming call, browser interrupt)
+document.addEventListener('touchcancel', () => {
+    isTouching = false;
+    
+    // Cancel redirect if touch is cancelled
+    if (isTouchingForRedirect) {
+        isTouchingForRedirect = false;
+        if (touchRedirectTimer) {
+            clearTimeout(touchRedirectTimer);
+            touchRedirectTimer = null;
+        }
+        if (isRedirecting) {
+            cancelRedirect();
+        }
+    }
 }, { passive: true });
 
 let initialPinchDistance = 0;
@@ -191,6 +515,11 @@ window.addEventListener('resize', () => {
     if (wasMobile !== isMobileView) {
         console.log("Mobile state changed:", isMobileView, "Width:", window.innerWidth);
         blockNavUI.style.bottom = isMobileView ? '60px' : '40px';
+        
+        // Update vignette intensity based on mobile/desktop
+        vignetteContainer.style.boxShadow = isMobileView ? 
+            'inset 0 0 80px 80px rgba(0, 0, 0, 0.7)' : 
+            'inset 0 0 150px 150px rgba(0, 0, 0, 0.95)';
     }
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -696,11 +1025,11 @@ function createStarsForBlock(blockNumber) {
         // Use 100% saturation and high lightness for more vibrant stars
         const starColor = new THREE.Color(`hsl(${hue}, 100%, 80%)`);
 
-        // Make stars smaller but brighter on mobile
-        const starSize = isMobileView ? 1.2 : 0.8; // Increased size for both desktop and mobile
+        // Make stars significantly larger and brighter on mobile
+        const starSize = isMobileView ? 2.0 : 1.0; // Much larger on mobile
         const mobileStarGeometry = new THREE.SphereGeometry(starSize, isMobileView ? 16 : 32, isMobileView ? 16 : 32);
 
-        const baseEmissiveIntensity = isMobileView ? 15.0 : 4.0; // Higher brightness on both mobile and desktop
+        const baseEmissiveIntensity = isMobileView ? 25.0 : 5.0; // Much higher brightness on mobile
 
         const star = new THREE.Mesh(mobileStarGeometry, new THREE.MeshBasicMaterial({
             color: starColor,
@@ -904,10 +1233,10 @@ function createStarsForBlock(blockNumber) {
 
             const baseOpacity = isMobileView ? 1.0 : 0.8;
             const constellationLineMat = new THREE.LineBasicMaterial({
-                color: new THREE.Color(`hsl(${hue}, 100%, 60%)`), // More saturated color for lines
-                opacity: baseOpacity, // More visible lines on desktop too
+                color: new THREE.Color(`hsl(${hue}, 100%, 80%)`), // Brighter color for mobile
+                opacity: baseOpacity,
                 transparent: true,
-                linewidth: isMobileView ? 3.0 : 1.0 // Thicker lines on desktop too
+                linewidth: isMobileView ? 5.0 : 2.0 // Much thicker lines on mobile
             });
             const constellationLine = new THREE.Line(constellationLineGeo, constellationLineMat);
             scene.add(constellationLine);
@@ -1175,7 +1504,7 @@ function animate() {
         if (star.material) {
             star.material.emissiveIntensity = star.userData.baseEmissiveIntensity
                 ? star.userData.baseEmissiveIntensity * currentBlinkIntensity
-                : (isMobileView ? 15.0 : 4.0) * currentBlinkIntensity;
+                : (isMobileView ? 25.0 : 5.0) * currentBlinkIntensity; // Updated to match new values
         }
     });
 
@@ -1390,12 +1719,12 @@ function createEmergencyFallbackStars() {
         const z = 30; // Place closer to camera for visibility
 
         // Bigger and brighter stars for visibility
-        const starSize = isMobileView ? 3.0 : 2.5; // Increased size for both mobile and desktop
+        const starSize = isMobileView ? 4.0 : 2.5; // Even larger for mobile emergency stars
         const starGeom = new THREE.SphereGeometry(starSize, 16, 16);
 
         // Use a variety of bright colors
         const color = colors[i % colors.length];
-        const baseEmissiveIntensity = isMobileView ? 20.0 : 5.0; // Increased brightness for both
+        const baseEmissiveIntensity = isMobileView ? 30.0 : 6.0; // Even brighter for emergency stars
 
         const starMat = new THREE.MeshBasicMaterial({
             color: color,

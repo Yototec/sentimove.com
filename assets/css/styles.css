@@ -3,10 +3,16 @@ body {
     overflow: hidden;
     background-color: black;
     touch-action: none; /* Prevent browser handling of touch gestures */
+    -webkit-touch-callout: none; /* Prevent iOS callout menu */
+    -webkit-user-select: none; /* Prevent text selection */
+    user-select: none; /* Prevent text selection */
 }
 
 canvas {
     display: block;
+    -webkit-touch-callout: none; /* Prevent iOS callout menu on canvas */
+    -webkit-user-select: none; /* Prevent selection */
+    user-select: none; /* Prevent selection */
 }
 
 #info {
