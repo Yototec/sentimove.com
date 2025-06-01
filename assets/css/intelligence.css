@@ -793,6 +793,8 @@ footer {
     max-width: 500px;
     width: 90%;
     text-align: center;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .api-key-modal-content h2 {
@@ -801,13 +803,51 @@ footer {
     font-size: 1.8rem;
 }
 
+.api-key-modal-content h3 {
+    color: #ffffff;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+}
+
 .api-key-modal-content p {
     color: #cccccc;
     margin-bottom: 20px;
     line-height: 1.5;
 }
 
-#apiKeyInput {
+/* API Key Sections */
+.api-key-section {
+    margin-bottom: 25px;
+}
+
+.api-key-divider {
+    text-align: center;
+    margin: 25px 0;
+    position: relative;
+}
+
+.api-key-divider span {
+    background-color: #111111;
+    padding: 0 15px;
+    color: #888888;
+    position: relative;
+    z-index: 1;
+}
+
+.api-key-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: #333;
+    z-index: 0;
+}
+
+/* Form Inputs */
+#apiKeyInput,
+.register-form input {
     width: 100%;
     padding: 12px;
     font-size: 1rem;
@@ -815,14 +855,86 @@ footer {
     border: 1px solid #333;
     border-radius: 5px;
     color: #ffffff;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+#apiKeyInput {
     font-family: monospace;
 }
 
-#apiKeyInput:focus {
+#apiKeyInput:focus,
+.register-form input:focus {
     outline: none;
     border-color: #00FFC8;
     box-shadow: 0 0 0 2px rgba(0, 255, 200, 0.2);
+}
+
+/* Submit Buttons */
+.api-key-submit-btn {
+    background-color: #00FFC8;
+    color: #000000;
+    border: none;
+    padding: 10px 30px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.api-key-submit-btn:hover {
+    background-color: #00ccaa;
+    transform: scale(1.02);
+}
+
+.api-key-submit-btn:disabled {
+    background-color: #666666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Registration Form */
+.register-form {
+    margin: 0;
+}
+
+/* Registration Results */
+.register-error {
+    background-color: rgba(255, 0, 0, 0.1);
+    border: 1px solid #ff0000;
+    color: #ff6666;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 15px;
+}
+
+.register-success {
+    background-color: rgba(0, 255, 200, 0.1);
+    border: 1px solid #00FFC8;
+    color: #00FFC8;
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 15px;
+}
+
+.register-success p {
+    margin: 5px 0;
+    color: #00FFC8;
+}
+
+.api-key-display {
+    font-family: monospace;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-top: 5px;
+    word-break: break-all;
+    color: #ffffff;
 }
 
 .api-key-modal-buttons {
@@ -1003,6 +1115,45 @@ footer {
         padding: 20px;
         width: 95%;
         max-width: 100%;
+        max-height: 85vh;
+    }
+    
+    .api-key-modal-content h2 {
+        font-size: 1.5rem;
+    }
+    
+    .api-key-modal-content h3 {
+        font-size: 1.1rem;
+    }
+    
+    .api-key-section {
+        margin-bottom: 20px;
+    }
+    
+    .api-key-divider {
+        margin: 20px 0;
+    }
+    
+    #apiKeyInput,
+    .register-form input {
+        font-size: 16px; /* Prevent zoom on iOS */
+        padding: 10px;
+    }
+    
+    .api-key-submit-btn {
+        padding: 12px 20px;
+        font-size: 0.95rem;
+    }
+    
+    .register-error,
+    .register-success {
+        font-size: 0.9rem;
+        padding: 8px;
+    }
+    
+    .api-key-display {
+        font-size: 0.85rem;
+        padding: 4px 8px;
     }
     
     .api-key-modal-buttons {

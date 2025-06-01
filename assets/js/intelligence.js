@@ -143,34 +143,146 @@ function showApiKeyModal() {
     modal.innerHTML = `
         <div class="api-key-modal-content">
             <h2>API Key Required</h2>
-            <p>Please enter your SentiChain API key to access market intelligence data.</p>
-            <input type="text" id="apiKeyInput" placeholder="Enter your API key" />
-            <div class="api-key-modal-buttons">
-                <button id="submitApiKeyBtn">Submit</button>
-                <a href="https://sentichain.com" target="_blank" class="api-key-link">Get API Key →</a>
+            <p>Enter your existing API key or register for a new one.</p>
+            
+            <!-- Existing API Key Section -->
+            <div class="api-key-section">
+                <h3>Have an API Key?</h3>
+                <input type="text" id="apiKeyInput" placeholder="Enter your API key" />
+                <button id="submitApiKeyBtn" class="api-key-submit-btn">Submit API Key</button>
             </div>
+            
+            <div class="api-key-divider">
+                <span>OR</span>
+            </div>
+            
+            <!-- Registration Section -->
+            <div class="api-key-section">
+                <h3>Register for New API Key</h3>
+                <form id="registerForm" class="register-form">
+                    <input type="text" id="registerUserId" placeholder="Choose a username" required />
+                    <input type="email" id="registerEmail" placeholder="Your email address" required />
+                    <input type="text" id="registerName" placeholder="Your full name" required />
+                    <button type="submit" class="api-key-submit-btn">Register</button>
+                </form>
+                
+                <!-- Registration Result -->
+                <div id="registerResult" style="display: none;">
+                    <div id="registerError" class="register-error" style="display: none;"></div>
+                    <div id="registerSuccess" class="register-success" style="display: none;">
+                        <p>Registration successful!</p>
+                        <p>Your API Key: <span id="registerApiKey" class="api-key-display"></span></p>
+                    </div>
+                </div>
+            </div>
+            
             <p class="api-key-note">Your API key will be saved locally for future visits.</p>
         </div>
     `;
     document.body.appendChild(modal);
     
     // Add event listeners
-    const input = document.getElementById('apiKeyInput');
+    const apiKeyInput = document.getElementById('apiKeyInput');
     const submitBtn = document.getElementById('submitApiKeyBtn');
+    const registerForm = document.getElementById('registerForm');
     
-    // Submit on button click
+    // Submit existing API key on button click
     submitBtn.addEventListener('click', submitApiKey);
     
-    // Submit on Enter key
-    input.addEventListener('keypress', (e) => {
+    // Submit existing API key on Enter key
+    apiKeyInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             submitApiKey();
         }
     });
     
-    // Focus input
+    // Handle registration form submission
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Get form values
+        const userId = document.getElementById('registerUserId').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
+        const name = document.getElementById('registerName').value.trim();
+        
+        // Get result elements
+        const resultDiv = document.getElementById('registerResult');
+        const errorDiv = document.getElementById('registerError');
+        const successDiv = document.getElementById('registerSuccess');
+        const apiKeySpan = document.getElementById('registerApiKey');
+        
+        // Reset display
+        resultDiv.style.display = 'block';
+        errorDiv.style.display = 'none';
+        successDiv.style.display = 'none';
+        errorDiv.textContent = '';
+        
+        // Validate inputs
+        if (!userId || !email || !name) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Please fill in all fields.';
+            return;
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = 'Please enter a valid email address.';
+            return;
+        }
+        
+        // Disable form during submission
+        registerForm.querySelectorAll('input, button').forEach(el => el.disabled = true);
+        
+        try {
+            // Make registration request
+            const response = await fetch('https://api.sentichain.com/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    user_id: userId, 
+                    email: email, 
+                    name: name 
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Your User ID or Email may be taken or may have an invalid format. Please try again.');
+            }
+            
+            const data = await response.json();
+            
+            // Validate response
+            if (!data.api_key || !data.message || !data.user_id) {
+                throw new Error('Invalid response from server. Please try again.');
+            }
+            
+            // Show success
+            successDiv.style.display = 'block';
+            apiKeySpan.textContent = data.api_key;
+            
+            // Save API key and proceed after a short delay
+            setTimeout(() => {
+                saveApiKey(data.api_key);
+                modal.remove();
+                addApiKeyButton();
+                loadData();
+            }, 2000);
+            
+        } catch (error) {
+            // Show error
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = error.message;
+            
+            // Re-enable form
+            registerForm.querySelectorAll('input, button').forEach(el => el.disabled = false);
+        }
+    });
+    
+    // Focus first input
     setTimeout(() => {
-        input.focus();
+        apiKeyInput.focus();
     }, 100);
 }
 
