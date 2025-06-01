@@ -601,15 +601,6 @@ main {
     flex-direction: column;
 }
 
-.chunk-summary-title {
-    color: #ffffff;
-    font-size: 1.5rem;
-    margin-bottom: 20px;
-    text-align: center;
-    padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
 .chunk-summary-content {
     flex: 1;
     overflow-y: auto;
@@ -658,6 +649,36 @@ main {
     padding-top: 15px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     font-style: italic;
+}
+
+/* Progressive constellation animation styles */
+@keyframes starGlow {
+    0% {
+        filter: brightness(1) drop-shadow(0 0 3px currentColor);
+    }
+    50% {
+        filter: brightness(1.5) drop-shadow(0 0 10px currentColor);
+    }
+    100% {
+        filter: brightness(1) drop-shadow(0 0 3px currentColor);
+    }
+}
+
+/* Canvas glow effect during animation */
+.chart-container.animating-constellation {
+    animation: subtleGlow 2s ease-in-out;
+}
+
+@keyframes subtleGlow {
+    0% {
+        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
+    }
+    50% {
+        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(255, 255, 255, 0.05);
+    }
+    100% {
+        box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 60px rgba(255, 255, 255, 0.1);
+    }
 }
 
 /* Custom scrollbar for summary content */
@@ -1041,11 +1062,6 @@ footer {
         padding: 15px;
     }
     
-    .chunk-summary-title {
-        font-size: 1.2rem;
-        margin-bottom: 15px;
-    }
-    
     .summary-section {
         margin-bottom: 20px;
     }
@@ -1058,12 +1074,6 @@ footer {
     .summary-text {
         font-size: 0.9rem;
         line-height: 1.5;
-    }
-    
-    .summary-hint {
-        font-size: 0.8rem;
-        margin-top: 15px;
-        padding-top: 10px;
     }
 }
 

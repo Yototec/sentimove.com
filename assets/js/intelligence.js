@@ -53,6 +53,11 @@ let currentHoveredChunk = null; // Track which chunk is being hovered
 let hoverTimer = null; // Timer for 2-second hover
 let isShowingSummary = false; // Track if we're showing summary view
 
+// Progressive constellation animation
+let constellationAnimationTimer = null; // Timer for progressive animation
+let animationProgress = 0; // Track animation progress (0-100)
+let isAnimatingConstellation = false; // Track if animation is in progress
+
 // API configuration
 const API_BASE = 'https://api.sentichain.com';
 let TICKER = 'BTC'; // Default ticker
@@ -330,6 +335,9 @@ async function loadData() {
     if (symbolSelector) {
         symbolSelector.disabled = true;
     }
+    
+    // Stop any ongoing animations
+    stopProgressiveConstellation();
     
     // Reset chunk tracking when loading new symbol
     loadedChunks.clear();
@@ -846,6 +854,11 @@ function createScatterPlot(events, marketData) {
                     hoverTimer = null;
                 }
                 
+                // Stop any ongoing animation if we're not hovering
+                if (activeElements.length === 0) {
+                    stopProgressiveConstellation();
+                }
+                
                 if (activeElements.length > 0) {
                     // Find the actual data point (skip constellation lines)
                     let dataPoint = null;
@@ -870,16 +883,17 @@ function createScatterPlot(events, marketData) {
                             highlightEventItem(dataPoint.eventIndex);
                         }
                         
-                        // Store current hovered chunk
-                        currentHoveredChunk = dataPoint.chunkKey;
-                        
-                        // Set timer for 2-second hover
-                        hoverTimer = setTimeout(() => {
-                            if (currentHoveredChunk && !isShowingSummary) {
-                                showChunkSummary(currentHoveredChunk);
-                                animateChunkStars(currentHoveredChunk);
+                        // Check if we're hovering over a different chunk
+                        if (currentHoveredChunk !== dataPoint.chunkKey) {
+                            // Stop any existing animation
+                            stopProgressiveConstellation();
+                            currentHoveredChunk = dataPoint.chunkKey;
+                            
+                            // Start progressive constellation animation immediately
+                            if (dataPoint.chunkKey && !isShowingSummary) {
+                                startProgressiveConstellation(dataPoint.chunkKey);
                             }
-                        }, 2000);
+                        }
                     }
                 } else {
                     canvas.style.cursor = 'default';
@@ -1138,14 +1152,12 @@ function showChunkSummary(chunkKey) {
     const summaryElement = document.createElement('div');
     summaryElement.className = 'chunk-summary';
     summaryElement.innerHTML = `
-        <h3 class="chunk-summary-title">Chunk ${chunkKey} Summary</h3>
         <div class="chunk-summary-content">
             ${createSummarySection('Macro', summary.macro, '#FF8888')}
             ${createSummarySection('Industry', summary.industry, '#88FFFF')}
             ${createSummarySection('Price', summary.price, '#FFFF88')}
             ${createSummarySection('Asset', summary.asset, '#88FF88')}
         </div>
-        <div class="summary-hint">Click anywhere on the chart to return to events view</div>
     `;
     
     container.appendChild(summaryElement);
@@ -1214,6 +1226,9 @@ function revertToEventsView() {
         hoverTimer = null;
     }
     
+    // Stop any ongoing progressive animation
+    stopProgressiveConstellation();
+    
     // Restore events display
     displayEvents(allEventsData);
     
@@ -1248,6 +1263,136 @@ function resetChunkAnimation() {
     });
     
     sentimentChart.update('none');
+}
+
+// Progressive constellation animation
+function startProgressiveConstellation(chunkKey) {
+    if (!sentimentChart || !sentimentChart.starsByChunk) return;
+    
+    const chunkPoints = sentimentChart.starsByChunk[chunkKey];
+    if (!chunkPoints || chunkPoints.length === 0) return;
+    
+    // Reset animation state
+    animationProgress = 0;
+    isAnimatingConstellation = true;
+    
+    // Add animation class to chart container
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) {
+        chartContainer.classList.add('animating-constellation');
+    }
+    
+    // Sort points by time for sequential animation
+    const sortedPoints = [...chunkPoints].sort((a, b) => a.x - b.x);
+    const totalPoints = sortedPoints.length;
+    
+    // Clear any existing animation timer
+    if (constellationAnimationTimer) {
+        clearInterval(constellationAnimationTimer);
+    }
+    
+    // Calculate animation intervals
+    const animationDuration = 2000; // 2 seconds total
+    const updateInterval = 50; // Update every 50ms
+    const progressPerUpdate = 100 / (animationDuration / updateInterval);
+    
+    // Find constellation line dataset
+    let constellationDataset = null;
+    sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type === 'line' && dataset.label === `Constellation ${chunkKey}`) {
+            constellationDataset = dataset;
+            // Start with invisible line
+            dataset.borderColor = 'rgba(255, 255, 255, 0)';
+            dataset.borderWidth = 1;
+        }
+    });
+    
+    // Reset all points in the chunk to normal size first
+    sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type === 'scatter' || !dataset.type) {
+            if (!Array.isArray(dataset.pointRadius)) {
+                dataset.pointRadius = new Array(dataset.data.length).fill(6);
+            }
+            if (!Array.isArray(dataset.pointBorderWidth)) {
+                dataset.pointBorderWidth = new Array(dataset.data.length).fill(1);
+            }
+        }
+    });
+    
+    // Progressive animation timer
+    constellationAnimationTimer = setInterval(() => {
+        animationProgress += progressPerUpdate;
+        
+        if (animationProgress >= 100) {
+            animationProgress = 100;
+            isAnimatingConstellation = false;
+            clearInterval(constellationAnimationTimer);
+            
+            // Trigger the full animation and summary display
+            if (currentHoveredChunk === chunkKey && !isShowingSummary) {
+                showChunkSummary(chunkKey);
+                animateChunkStars(chunkKey);
+            }
+            return;
+        }
+        
+        // Calculate how many points should be lit based on progress
+        const pointsToLight = Math.floor((animationProgress / 100) * totalPoints);
+        
+        // Light up constellation line progressively
+        if (constellationDataset) {
+            const lineOpacity = Math.min(0.5, (animationProgress / 100) * 0.5);
+            const lineWidth = 1 + (animationProgress / 100); // 1 to 2
+            constellationDataset.borderColor = `rgba(255, 255, 255, ${lineOpacity})`;
+            constellationDataset.borderWidth = lineWidth;
+            
+            // Add glow effect
+            if (animationProgress > 50) {
+                const glowIntensity = (animationProgress - 50) / 50;
+                constellationDataset.borderColor = `rgba(255, 255, 255, ${lineOpacity + glowIntensity * 0.2})`;
+            }
+        }
+        
+        // Light up points progressively
+        for (let i = 0; i < pointsToLight && i < sortedPoints.length; i++) {
+            const point = sortedPoints[i];
+            
+            // Find and animate this point in all datasets
+            sentimentChart.data.datasets.forEach(dataset => {
+                if (dataset.type === 'scatter' || !dataset.type) {
+                    dataset.data.forEach((dataPoint, index) => {
+                        if (dataPoint.x === point.x && dataPoint.y === point.y) {
+                            // Progressive size increase
+                            const sizeFactor = 1 + (i / totalPoints) * 0.5; // Up to 1.5x size
+                            dataset.pointRadius[index] = 6 * sizeFactor + Math.sin(animationProgress * 0.1) * 2;
+                            dataset.pointBorderWidth[index] = 1 + (i / totalPoints) * 2;
+                        }
+                    });
+                }
+            });
+        }
+        
+        sentimentChart.update('none');
+    }, updateInterval);
+}
+
+// Stop progressive constellation animation
+function stopProgressiveConstellation() {
+    if (constellationAnimationTimer) {
+        clearInterval(constellationAnimationTimer);
+        constellationAnimationTimer = null;
+    }
+    animationProgress = 0;
+    isAnimatingConstellation = false;
+    
+    // Reset constellation appearance
+    resetChunkAnimation();
+    
+    // Remove animation class from chart container
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) {
+        chartContainer.classList.remove('animating-constellation');
+    }
 }
 
 // UI state management
