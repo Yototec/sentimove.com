@@ -967,6 +967,7 @@ function addMobileTouchHandlers(canvas) {
     let isTouchMoving = false;
     let touchStartX = 0;
     let touchStartY = 0;
+    let isTouchActive = false; // Add flag to track if touch is still active
     
     const chartContainer = canvas.closest('.chart-container');
     
@@ -982,6 +983,7 @@ function addMobileTouchHandlers(canvas) {
         touchStartY = y;
         touchStartTime = Date.now();
         isTouchMoving = false;
+        isTouchActive = true; // Set touch as active
         
         // Find if we're touching a point
         const canvasPosition = Chart.helpers.getRelativePosition(e, sentimentChart);
@@ -1000,7 +1002,8 @@ function addMobileTouchHandlers(canvas) {
                 
                 // Set up long press timer (500ms for mobile)
                 touchTimer = setTimeout(() => {
-                    if (!isTouchMoving && touchedPoint && touchedPoint.chunkKey) {
+                    // Only proceed if touch is still active
+                    if (isTouchActive && !isTouchMoving && touchedPoint && touchedPoint.chunkKey) {
                         // Haptic feedback if available
                         if (navigator.vibrate) {
                             navigator.vibrate(50);
@@ -1050,6 +1053,9 @@ function addMobileTouchHandlers(canvas) {
     canvas.addEventListener('touchend', (e) => {
         const touchDuration = Date.now() - touchStartTime;
         
+        // Mark touch as inactive immediately
+        isTouchActive = false;
+        
         // Remove visual feedback
         chartContainer.classList.remove('touch-holding');
         
@@ -1086,6 +1092,9 @@ function addMobileTouchHandlers(canvas) {
     });
     
     canvas.addEventListener('touchcancel', () => {
+        // Mark touch as inactive
+        isTouchActive = false;
+        
         // Remove visual feedback
         chartContainer.classList.remove('touch-holding');
         
