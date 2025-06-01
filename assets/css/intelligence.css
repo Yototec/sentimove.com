@@ -827,6 +827,63 @@ footer {
     line-height: 1.5;
 }
 
+/* View API Key Modal specific styles */
+.api-key-view-modal {
+    max-width: 600px;
+}
+
+.api-key-info {
+    margin: 20px 0;
+}
+
+.api-key-display-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 15px 0;
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+
+.api-key-display {
+    font-family: monospace;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 3px;
+    font-size: 0.9rem;
+    display: inline-block;
+    word-break: break-all;
+    color: #ffffff;
+    flex: 1;
+    text-align: left;
+}
+
+.copy-btn {
+    background-color: #00FFC8;
+    color: #000000;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.copy-btn:hover {
+    background-color: #00ccaa;
+    transform: scale(1.05);
+}
+
+.copy-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
 /* API Key Sections */
 .api-key-section {
     margin-bottom: 25px;
@@ -954,7 +1011,8 @@ footer {
     border-bottom-color: #00FFC8;
 }
 
-.api-key-display {
+/* API key display for registration success */
+.register-success .api-key-display {
     font-family: monospace;
     background-color: rgba(0, 0, 0, 0.5);
     padding: 5px 10px;
@@ -1147,12 +1205,25 @@ footer {
         max-height: 85vh;
     }
     
-    .api-key-modal-content h2 {
-        font-size: 1.5rem;
+    .api-key-view-modal {
+        max-width: 100%;
     }
     
-    .api-key-modal-content h3 {
-        font-size: 1.1rem;
+    .api-key-display-container {
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+    }
+    
+    .api-key-display {
+        font-size: 0.8rem;
+        text-align: center;
+        padding: 8px 0;
+    }
+    
+    .copy-btn {
+        width: 100%;
+        padding: 10px;
     }
     
     .api-key-section {
@@ -1178,11 +1249,6 @@ footer {
     .register-success {
         font-size: 0.9rem;
         padding: 8px;
-    }
-    
-    .api-key-display {
-        font-size: 0.85rem;
-        padding: 4px 8px;
     }
     
     .api-key-modal-buttons {

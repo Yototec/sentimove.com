@@ -313,17 +313,29 @@ function submitApiKey() {
     loadData();
 }
 
-// Add API key change button
+// Add API key buttons
 function addApiKeyButton() {
-    // Check if button already exists
+    // Check if buttons already exist
     if (document.querySelector('.change-api-key-btn')) {
-        return; // Button already exists, don't add another
+        return; // Buttons already exist, don't add another
     }
     
-    const button = document.createElement('button');
-    button.className = 'change-api-key-btn';
-    button.textContent = 'Change API Key';
-    button.onclick = () => {
+    const header = document.querySelector('header nav');
+    if (!header) return;
+    
+    // Create View API Key button
+    const viewButton = document.createElement('button');
+    viewButton.className = 'change-api-key-btn view-api-key-btn';
+    viewButton.textContent = 'View API Key';
+    viewButton.onclick = () => {
+        showApiKeyInfo();
+    };
+    
+    // Create Change API Key button
+    const changeButton = document.createElement('button');
+    changeButton.className = 'change-api-key-btn';
+    changeButton.textContent = 'Change API Key';
+    changeButton.onclick = () => {
         if (confirm('Do you want to change your API key?')) {
             localStorage.removeItem('sentichain_api_key');
             API_KEY = null;
@@ -331,10 +343,81 @@ function addApiKeyButton() {
         }
     };
     
-    const header = document.querySelector('header nav');
-    if (header) {
-        header.appendChild(button);
+    // Add both buttons to header
+    header.appendChild(viewButton);
+    header.appendChild(changeButton);
+}
+
+// Show current API key information
+function showApiKeyInfo() {
+    const currentKey = localStorage.getItem('sentichain_api_key');
+    
+    if (!currentKey) {
+        alert('No API key found in local storage.');
+        return;
     }
+    
+    // Create modal to show API key
+    const modal = document.createElement('div');
+    modal.className = 'api-key-modal';
+    modal.innerHTML = `
+        <div class="api-key-modal-content api-key-view-modal">
+            <h2>Your Current API Key</h2>
+            <div class="api-key-info">
+                <p>This API key is stored locally in your browser:</p>
+                <div class="api-key-display-container">
+                    <span id="apiKeyDisplay" class="api-key-display">${currentKey}</span>
+                    <button id="copyApiKeyBtn" class="copy-btn" title="Copy to clipboard">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <p class="api-key-note">Keep this key secure and do not share it publicly.</p>
+                <p class="api-key-note">To check your balance or add more points, visit <a href="https://sentichain.com/app?tab=APIManagement" target="_blank" class="topup-link">API Management →</a></p>
+            </div>
+            <button id="closeModalBtn" class="api-key-submit-btn">Close</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Add event listeners
+    const copyBtn = document.getElementById('copyApiKeyBtn');
+    const closeBtn = document.getElementById('closeModalBtn');
+    
+    copyBtn.addEventListener('click', () => {
+        const apiKeyText = document.getElementById('apiKeyDisplay').textContent;
+        navigator.clipboard.writeText(apiKeyText).then(() => {
+            // Show feedback
+            copyBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/>
+                </svg>
+            `;
+            setTimeout(() => {
+                copyBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M10.707 3H14v10h-4V6.5a.5.5 0 0 0-.5-.5H3V3h7.707zM9.5 7H13v5.5a.5.5 0 0 1-.5.5H10V7.5a.5.5 0 0 1 .5-.5z"/>
+                        <path d="M6 2a1 1 0 0 0-1 1H2.5A1.5 1.5 0 0 0 1 4.5v9A1.5 1.5 0 0 0 2.5 15h7a1.5 1.5 0 0 0 1.5-1.5V11a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H6zM2 4.5a.5.5 0 0 1 .5-.5H5v9.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 .5-.5V4h1.5a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-9z"/>
+                    </svg>
+                `;
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            alert('Failed to copy API key to clipboard');
+        });
+    });
+    
+    closeBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 // Initialize the page
