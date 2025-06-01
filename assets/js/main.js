@@ -53,6 +53,14 @@ let redirectOverlay = null;
 let redirectSpinner = null;
 let redirectText = null;
 
+// Variables for touch-based redirect on mobile
+let touchRedirectTimer = null;
+let touchStartTime = 0;
+let isTouchingForRedirect = false;
+let touchStartX = 0;
+let touchStartY = 0;
+const TOUCH_MOVE_THRESHOLD = 10; // pixels - how much movement cancels the redirect
+
 // Raycaster for detecting sphere hover
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -124,6 +132,32 @@ function isMouseOverSphere(event) {
     // Update mouse coordinates
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    // Update raycaster
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Create an invisible sphere at origin to test intersection
+    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+    const sphereMesh = new THREE.Mesh(sphereGeometry);
+    sphereMesh.position.set(0, 0, 0);
+    
+    // Check intersection
+    const intersects = raycaster.intersectObject(sphereMesh);
+    
+    // Clean up
+    sphereGeometry.dispose();
+    
+    return intersects.length > 0;
+}
+
+// Check if touch point is over the sphere
+function isTouchOverSphere(touch) {
+    // Don't check if already redirecting
+    if (isRedirecting) return false;
+    
+    // Update mouse coordinates from touch
+    mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
     
     // Update raycaster
     raycaster.setFromCamera(mouse, camera);
@@ -326,11 +360,46 @@ document.addEventListener('touchstart', (event) => {
         event.target.closest('#sliderContainer')) return;
 
     if (event.touches.length === 1) {
+        const touch = event.touches[0];
         isTouching = true;
-        lastTouchX = event.touches[0].clientX;
-        lastTouchY = event.touches[0].clientY;
+        lastTouchX = touch.clientX;
+        lastTouchY = touch.clientY;
+        
+        // For mobile redirect: check if touching the sphere
+        if (isMobileView && isTouchOverSphere(touch)) {
+            // Prevent iOS context menu
+            event.preventDefault();
+            
+            // Start tracking for redirect
+            isTouchingForRedirect = true;
+            touchStartTime = Date.now();
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            
+            // Clear any existing timer
+            if (touchRedirectTimer) {
+                clearTimeout(touchRedirectTimer);
+            }
+            
+            // Start the 1-second timer for redirect
+            touchRedirectTimer = setTimeout(() => {
+                // Check if still touching and on sphere
+                if (isTouchingForRedirect && event.touches.length === 1) {
+                    const currentTouch = event.touches[0];
+                    const moveDistance = Math.sqrt(
+                        Math.pow(currentTouch.clientX - touchStartX, 2) + 
+                        Math.pow(currentTouch.clientY - touchStartY, 2)
+                    );
+                    
+                    // If hasn't moved much and still on sphere
+                    if (moveDistance < TOUCH_MOVE_THRESHOLD && isTouchOverSphere(currentTouch)) {
+                        startRedirect();
+                    }
+                }
+            }, HOVER_DELAY);
+        }
     }
-}, { passive: true });
+}, { passive: false }); // Changed to non-passive to allow preventDefault
 
 document.addEventListener('touchmove', (event) => {
     if (event.target.closest('.cluster-labels-container') ||
@@ -348,11 +417,60 @@ document.addEventListener('touchmove', (event) => {
         targetRotationY -= deltaX * 0.01;
         targetRotationX -= deltaY * 0.01;
         event.preventDefault();
+        
+        // Check if we need to cancel redirect
+        if (isTouchingForRedirect) {
+            const moveDistance = Math.sqrt(
+                Math.pow(touchX - touchStartX, 2) + 
+                Math.pow(touchY - touchStartY, 2)
+            );
+            
+            // Cancel if moved too much or no longer on sphere
+            if (moveDistance > TOUCH_MOVE_THRESHOLD || !isTouchOverSphere(event.touches[0])) {
+                isTouchingForRedirect = false;
+                if (touchRedirectTimer) {
+                    clearTimeout(touchRedirectTimer);
+                    touchRedirectTimer = null;
+                }
+                if (isRedirecting) {
+                    cancelRedirect();
+                }
+            }
+        }
     }
 }, { passive: false });
 
 document.addEventListener('touchend', () => {
     isTouching = false;
+    
+    // Cancel redirect if touch ends
+    if (isTouchingForRedirect) {
+        isTouchingForRedirect = false;
+        if (touchRedirectTimer) {
+            clearTimeout(touchRedirectTimer);
+            touchRedirectTimer = null;
+        }
+        if (isRedirecting) {
+            cancelRedirect();
+        }
+    }
+}, { passive: true });
+
+// Handle touch cancel (e.g., incoming call, browser interrupt)
+document.addEventListener('touchcancel', () => {
+    isTouching = false;
+    
+    // Cancel redirect if touch is cancelled
+    if (isTouchingForRedirect) {
+        isTouchingForRedirect = false;
+        if (touchRedirectTimer) {
+            clearTimeout(touchRedirectTimer);
+            touchRedirectTimer = null;
+        }
+        if (isRedirecting) {
+            cancelRedirect();
+        }
+    }
 }, { passive: true });
 
 let initialPinchDistance = 0;
