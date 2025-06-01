@@ -1059,6 +1059,26 @@ footer {
         box-shadow: none;
     }
     
+    /* Make event items more touch-friendly */
+    .event-item {
+        cursor: pointer;
+        -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+        /* Add active state for touch feedback */
+        transition: all 0.2s ease;
+    }
+    
+    .event-item:active {
+        background: rgba(255, 255, 255, 0.1);
+        transform: scale(0.98);
+    }
+    
+    /* Keep highlighted state visible on touch devices */
+    .event-item.highlighted {
+        border-color: rgba(255, 255, 255, 0.6) !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.3) !important;
+    }
+    
     /* Improve scrolling performance */
     #eventsContainer {
         -webkit-overflow-scrolling: touch;

@@ -768,6 +768,32 @@ function createScatterPlot(events, marketData) {
                         item.classList.remove('highlighted');
                     });
                 }
+            },
+            onClick: (event, activeElements) => {
+                // Handle click/touch on chart points
+                if (activeElements.length > 0) {
+                    const datasetIndex = activeElements[0].datasetIndex;
+                    const index = activeElements[0].index;
+                    const point = sentimentChart.data.datasets[datasetIndex].data[index];
+                    if (point.eventIndex !== undefined) {
+                        // Clear all highlights first
+                        document.querySelectorAll('.event-item').forEach(item => {
+                            item.classList.remove('highlighted');
+                        });
+                        
+                        // Highlight the clicked point's corresponding event
+                        highlightEventItem(point.eventIndex);
+                        
+                        // Keep the event highlighted for mobile
+                        if ('ontouchstart' in window) {
+                            setTimeout(() => {
+                                document.querySelectorAll('.event-item').forEach(item => {
+                                    item.classList.remove('highlighted');
+                                });
+                            }, 3000); // Remove after 3 seconds on mobile
+                        }
+                    }
+                }
             }
         }
     });
@@ -827,6 +853,67 @@ function displayEvents(events) {
             // Reset chart points
             resetChartHighlights();
             eventElement.classList.remove('highlighted');
+        });
+        
+        // Add touch support for mobile devices
+        let touchTimeout;
+        let touchStartY = 0;
+        
+        eventElement.addEventListener('touchstart', (e) => {
+            // Store initial touch position
+            touchStartY = e.touches[0].clientY;
+            
+            // Clear any existing timeout
+            if (touchTimeout) {
+                clearTimeout(touchTimeout);
+            }
+            
+            // Highlight immediately on touch
+            highlightChartPoint(originalIndex);
+            eventElement.classList.add('highlighted');
+        });
+        
+        eventElement.addEventListener('touchend', (e) => {
+            // Check if it was a tap (not a scroll)
+            const touchEndY = e.changedTouches[0].clientY;
+            const touchDistance = Math.abs(touchEndY - touchStartY);
+            
+            if (touchDistance < 10) { // Was a tap, not a scroll
+                // Keep highlighted for a moment
+                touchTimeout = setTimeout(() => {
+                    resetChartHighlights();
+                    eventElement.classList.remove('highlighted');
+                }, 2000);
+            } else {
+                // Was a scroll, remove highlight immediately
+                resetChartHighlights();
+                eventElement.classList.remove('highlighted');
+            }
+        });
+        
+        // Also handle click for better compatibility
+        eventElement.addEventListener('click', (e) => {
+            // Check if it's a touch device
+            if ('ontouchstart' in window) {
+                // Touch device - already handled by touchstart
+                return;
+            }
+            
+            // Non-touch device - toggle highlight
+            if (eventElement.classList.contains('highlighted')) {
+                resetChartHighlights();
+                eventElement.classList.remove('highlighted');
+            } else {
+                // Remove other highlights first
+                document.querySelectorAll('.event-item').forEach(item => {
+                    item.classList.remove('highlighted');
+                });
+                resetChartHighlights();
+                
+                // Add highlight
+                highlightChartPoint(originalIndex);
+                eventElement.classList.add('highlighted');
+            }
         });
         
         container.appendChild(eventElement);
