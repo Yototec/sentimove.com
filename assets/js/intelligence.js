@@ -58,6 +58,10 @@ let constellationAnimationTimer = null; // Timer for progressive animation
 let animationProgress = 0; // Track animation progress (0-100)
 let isAnimatingConstellation = false; // Track if animation is in progress
 
+// Input type tracking
+let lastInputType = 'mouse'; // Track whether last input was 'mouse' or 'touch'
+let inputTypeTimeout = null; // Timeout for resetting input type
+
 // API configuration
 const API_BASE = 'https://api.sentichain.com';
 let TICKER = 'BTC'; // Default ticker
@@ -848,6 +852,14 @@ function createScatterPlot(events, marketData) {
             onHover: (event, activeElements) => {
                 const canvas = event.native.target;
                 
+                // Use actual input type instead of device capability
+                const isUsingTouch = lastInputType === 'touch';
+                
+                // Debug logging
+                if (activeElements.length > 0 && !isUsingTouch) {
+                    console.log('Mouse hover detected:', { lastInputType, activeElements: activeElements.length });
+                }
+                
                 // Clear any existing hover timer
                 if (hoverTimer) {
                     clearTimeout(hoverTimer);
@@ -883,15 +895,26 @@ function createScatterPlot(events, marketData) {
                             highlightEventItem(dataPoint.eventIndex);
                         }
                         
-                        // Check if we're hovering over a different chunk
-                        if (currentHoveredChunk !== dataPoint.chunkKey) {
-                            // Stop any existing animation
-                            stopProgressiveConstellation();
-                            currentHoveredChunk = dataPoint.chunkKey;
+                        // Only start constellation animation when using mouse (not touch)
+                        if (!isUsingTouch) {
+                            console.log('Mouse: checking chunk hover', { 
+                                currentHoveredChunk, 
+                                dataPointChunkKey: dataPoint.chunkKey,
+                                isShowingSummary 
+                            });
                             
-                            // Start progressive constellation animation immediately
-                            if (dataPoint.chunkKey && !isShowingSummary) {
-                                startProgressiveConstellation(dataPoint.chunkKey);
+                            // Check if we're hovering over a different chunk
+                            if (currentHoveredChunk !== dataPoint.chunkKey) {
+                                // Stop any existing animation
+                                stopProgressiveConstellation();
+                                currentHoveredChunk = dataPoint.chunkKey;
+                                
+                                console.log('Mouse: starting constellation for chunk', dataPoint.chunkKey);
+                                
+                                // Start progressive constellation animation immediately
+                                if (dataPoint.chunkKey && !isShowingSummary) {
+                                    startProgressiveConstellation(dataPoint.chunkKey);
+                                }
                             }
                         }
                     }
@@ -1705,3 +1728,34 @@ function getChunkIndexForTimestamp(timestamp) {
     
     return -1; // No more chunks to load
 }
+
+// Detect input type based on actual interaction
+function updateInputType(type) {
+    lastInputType = type;
+    
+    // Clear any existing timeout
+    if (inputTypeTimeout) {
+        clearTimeout(inputTypeTimeout);
+    }
+    
+    // Reset to mouse after 500ms of no touch input
+    // This handles the case where user switches from touch to mouse
+    if (type === 'touch') {
+        inputTypeTimeout = setTimeout(() => {
+            lastInputType = 'mouse';
+        }, 500);
+    }
+}
+
+// Listen for touch events globally to detect touch input
+document.addEventListener('touchstart', () => updateInputType('touch'), { passive: true });
+document.addEventListener('touchmove', () => updateInputType('touch'), { passive: true });
+document.addEventListener('touchend', () => updateInputType('touch'), { passive: true });
+
+// Listen for mouse events to detect mouse input
+document.addEventListener('mousemove', (e) => {
+    // Only count as mouse if there's actual movement (not triggered by touch)
+    if (e.movementX !== 0 || e.movementY !== 0) {
+        updateInputType('mouse');
+    }
+}, { passive: true });
