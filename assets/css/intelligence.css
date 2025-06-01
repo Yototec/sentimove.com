@@ -1267,55 +1267,50 @@ footer {
         flex-direction: row;
         flex-wrap: nowrap; /* Prevent wrapping to keep all buttons in one row */
         justify-content: space-between;
-        gap: 3px; /* Very small gap */
+        gap: 5px; /* Slightly larger gap for better spacing */
         overflow-x: auto; /* Allow horizontal scroll if needed */
         -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        align-items: stretch; /* Make all items same height */
     }
     
     .nav-link,
     .change-api-key-btn,
     .symbol-selector {
-        font-size: 0.65rem; /* Smaller font to fit text */
-        padding: 4px 5px; /* Very compact padding */
+        font-size: 0.75rem; /* Slightly larger font */
+        padding: 6px 8px; /* More comfortable padding */
         margin: 0;
-        height: 30px; /* Smaller height */
-        min-height: 30px;
-        flex-shrink: 0; /* Prevent shrinking below minimum */
+        height: 34px; /* Slightly taller for better touch targets */
+        min-height: 34px;
+        flex: 1 1 auto; /* Allow buttons to grow and fill space */
         white-space: nowrap; /* Prevent text wrapping */
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
-    /* Remove the pseudo-element styles - we'll use the actual text */
-    .view-api-key-btn {
-        /* Remove font-size: 0 */
-    }
-    
-    .view-api-key-btn::before {
-        display: none; /* Remove pseudo-element */
-    }
-    
-    .change-api-key-btn:not(.view-api-key-btn) {
-        /* Remove font-size: 0 */
-    }
-    
-    .change-api-key-btn:not(.view-api-key-btn)::before {
-        display: none; /* Remove pseudo-element */
-    }
-    
+    /* Specific sizing for each button type */
     .nav-link {
-        /* Remove font-size: 0 */
-    }
-    
-    .nav-link::before {
-        display: none; /* Remove pseudo-element */
+        flex: 0 0 auto; /* Don't grow, just fit content */
+        min-width: 65px;
     }
     
     .symbol-selector {
-        min-width: 50px; /* Compact width */
-        flex: 0 0 auto; /* Don't grow or shrink */
-        max-width: 60px; /* Smaller max width */
-        background-size: 8px 4px; /* Smaller arrow */
-        padding-right: 16px; /* Adjust for smaller arrow */
-        font-size: 0.65rem; /* Ensure font size is applied */
+        flex: 0 0 auto; /* Don't grow, just fit content */
+        min-width: 65px;
+        max-width: 75px;
+        background-size: 10px 5px; /* Slightly larger arrow */
+        padding-right: 20px; /* Adjust for arrow */
+        font-size: 0.75rem;
+    }
+    
+    .view-api-key-btn {
+        flex: 1 1 auto; /* Grow to fill space */
+        min-width: 0; /* Allow shrinking if needed */
+    }
+    
+    .change-api-key-btn:not(.view-api-key-btn) {
+        flex: 1 1 auto; /* Grow to fill space */
+        min-width: 0; /* Allow shrinking if needed */
     }
     
     /* Footer adjustments */
@@ -1417,25 +1412,30 @@ footer {
     }
     
     nav {
-        gap: 3px; /* Even smaller gap for very small screens */
+        gap: 3px; /* Smaller gap for very small screens */
     }
     
     .nav-link,
     .change-api-key-btn,
     .symbol-selector {
-        font-size: 0.6rem; /* Even smaller for very small screens */
-        padding: 4px 4px; /* Minimal padding */
-        min-height: 28px; /* Keep original smaller height */
-        height: 28px;
+        font-size: 0.7rem; /* Slightly smaller for very small screens */
+        padding: 5px 6px; /* Slightly less padding */
+        min-height: 32px; /* Slightly smaller height */
+        height: 32px;
         line-height: normal; /* Reset line-height to allow flexbox to center properly */
     }
     
+    /* More specific sizing for very small screens */
+    .nav-link {
+        min-width: 55px; /* Smaller minimum */
+    }
+    
     .symbol-selector {
-        min-width: 48px; /* Even smaller minimum width */
-        max-width: 55px; /* Even smaller max width */
-        background-size: 8px 4px; /* Keep smaller arrow */
-        padding-right: 15px; /* Adjust for smaller arrow */
-        font-size: 0.6rem; /* Ensure font size is applied */
+        min-width: 55px; /* Smaller minimum width */
+        max-width: 65px; /* Smaller max width */
+        background-size: 8px 4px; /* Smaller arrow */
+        padding-right: 18px; /* Adjust for smaller arrow */
+        font-size: 0.7rem; /* Ensure font size is applied */
     }
     
     footer {
@@ -1503,6 +1503,25 @@ footer {
     .chart-nav-btn,
     .retry-button {
         min-height: 44px;
+    }
+    
+    /* Override mobile button heights for better touch targets on touch devices */
+    @media (max-width: 768px) {
+        .nav-link,
+        .change-api-key-btn,
+        .symbol-selector {
+            height: 40px; /* Larger height for touch devices */
+            min-height: 40px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .nav-link,
+        .change-api-key-btn,
+        .symbol-selector {
+            height: 38px; /* Still maintain good touch target on small screens */
+            min-height: 38px;
+        }
     }
     
     /* Remove hover effects on touch devices */
@@ -1636,14 +1655,25 @@ footer {
     .ios-device .nav-link,
     .ios-device .change-api-key-btn,
     .ios-device .symbol-selector {
-        /* Ensure exact same height on iOS mobile */
-        height: 30px !important;
-        min-height: 30px !important;
-        max-height: 30px !important;
+        /* Ensure consistent height on iOS mobile */
+        height: 34px !important;
+        min-height: 34px !important;
+        max-height: 34px !important;
         /* Ensure text is vertically centered */
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+    
+    /* For touch devices, increase to 40px */
+    @media (hover: none) and (pointer: coarse) {
+        .ios-device .nav-link,
+        .ios-device .change-api-key-btn,
+        .ios-device .symbol-selector {
+            height: 40px !important;
+            min-height: 40px !important;
+            max-height: 40px !important;
+        }
     }
     
     .ios-device .symbol-selector {
