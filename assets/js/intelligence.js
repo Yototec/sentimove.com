@@ -997,6 +997,9 @@ function addMobileTouchHandlers(canvas) {
     canvas.addEventListener('touchstart', (e) => {
         if (e.touches.length !== 1) return; // Only handle single touch
         
+        // Prevent default to avoid text selection and context menus
+        e.preventDefault();
+        
         const touch = e.touches[0];
         const rect = canvas.getBoundingClientRect();
         const x = touch.clientX - rect.left;
@@ -1044,7 +1047,7 @@ function addMobileTouchHandlers(canvas) {
                 }, 500); // 500ms for long press
             }
         }
-    });
+    }, { passive: false }); // Make it non-passive so we can preventDefault
     
     canvas.addEventListener('touchmove', (e) => {
         if (e.touches.length !== 1) return;
@@ -1074,6 +1077,9 @@ function addMobileTouchHandlers(canvas) {
     });
     
     canvas.addEventListener('touchend', (e) => {
+        // Prevent default to avoid any lingering selection behavior
+        e.preventDefault();
+        
         const touchDuration = Date.now() - touchStartTime;
         
         // Mark touch as inactive immediately
@@ -1088,8 +1094,14 @@ function addMobileTouchHandlers(canvas) {
             touchTimer = null;
         }
         
+        // Check if we're showing summary and this is a quick tap
+        if (isShowingSummary && touchDuration < 500 && !isTouchMoving) {
+            // Revert to events view
+            revertToEventsView();
+            resetChartHighlights();
+        }
         // If it was a quick tap (less than 500ms) and not moving
-        if (touchDuration < 500 && !isTouchMoving && touchedPoint) {
+        else if (touchDuration < 500 && !isTouchMoving && touchedPoint) {
             // Handle as a normal click - highlight the event
             if (touchedPoint.eventIndex !== undefined) {
                 // Clear all highlights first
@@ -1108,11 +1120,17 @@ function addMobileTouchHandlers(canvas) {
                 }, 3000);
             }
         }
+        // If it was a quick tap on empty space (no point touched)
+        else if (touchDuration < 500 && !isTouchMoving && !touchedPoint && isShowingSummary) {
+            // Also revert to events view when tapping empty space
+            revertToEventsView();
+            resetChartHighlights();
+        }
         
         // Reset
         touchedPoint = null;
         isTouchMoving = false;
-    });
+    }, { passive: false }); // Make it non-passive so we can preventDefault
     
     canvas.addEventListener('touchcancel', () => {
         // Mark touch as inactive

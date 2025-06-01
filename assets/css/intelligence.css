@@ -228,6 +228,13 @@ main {
     min-height: 0;
     overflow: hidden;
     box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.9);
+    /* Prevent text selection and context menus */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .chart-container::before {
@@ -262,6 +269,14 @@ main {
     max-height: 100%;
     position: relative;
     z-index: 1;
+    /* Prevent text selection on canvas */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    /* Prevent default touch behaviors */
+    touch-action: none;
 }
 
 .chart-container h2 {
@@ -1250,11 +1265,15 @@ footer {
         background-color: rgba(255, 255, 255, 0.2);
     }
     
-    /* Chart canvas touch feedback */
+    /* Chart canvas touch feedback - updated */
     .chart-container canvas {
-        touch-action: pan-x pan-y;
+        /* Allow only pinch zoom, no other touch actions */
+        touch-action: pinch-zoom;
         -webkit-tap-highlight-color: transparent;
         cursor: pointer;
+        /* Extra prevention of text selection */
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
     }
     
     /* Long press visual indicator */
