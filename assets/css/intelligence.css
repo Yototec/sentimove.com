@@ -927,11 +927,13 @@ footer {
     .events-section {
         height: 40%;
         min-height: 250px;
+        order: 2; /* Show events below chart on mobile */
     }
     
     .chart-section {
         height: 60%;
         min-height: 300px;
+        order: 1; /* Show chart above events on mobile */
     }
     
     /* Events list adjustments */
