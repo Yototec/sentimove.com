@@ -172,6 +172,8 @@ function showApiKeyModal() {
                     <div id="registerSuccess" class="register-success" style="display: none;">
                         <p>Registration successful!</p>
                         <p>Your API Key: <span id="registerApiKey" class="api-key-display"></span></p>
+                        <p class="register-info">This key includes 10 points for testing.</p>
+                        <p class="register-info">To add more points, visit <a href="https://sentichain.com/app?tab=APIManagement" target="_blank" class="topup-link">API Management →</a></p>
                     </div>
                 </div>
             </div>
@@ -1729,7 +1731,24 @@ function showError(message) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'none';
     document.getElementById('error').style.display = 'flex';
-    document.getElementById('errorMessage').textContent = message;
+    
+    // Check if the error might be related to API points or no data
+    const isApiError = message.includes('403') || message.includes('401') || 
+                      message.includes('Failed to fetch') || message.includes('API');
+    const isNoChunksError = message.includes('No chunks available');
+    
+    // Create enhanced error message
+    let errorContent = message;
+    
+    if (isNoChunksError) {
+        errorContent += '<br><br>This ticker may not have any sentiment data yet, or you may have insufficient API points.';
+        errorContent += '<br>Visit <a href="https://sentichain.com/app?tab=APIManagement" target="_blank" class="error-link">API Management</a> to check your balance and top up.';
+    } else if (isApiError) {
+        errorContent += '<br><br>This could be due to insufficient API points.';
+        errorContent += '<br>Visit <a href="https://sentichain.com/app?tab=APIManagement" target="_blank" class="error-link">API Management</a> to check your balance and top up.';
+    }
+    
+    document.getElementById('errorMessage').innerHTML = errorContent;
     
     // Ensure symbol selector is enabled even on error
     const symbolSelector = document.getElementById('symbolSelector');
