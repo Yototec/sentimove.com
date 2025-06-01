@@ -41,6 +41,161 @@ const lineGrowthSpeedFast = 0.08; // Increased speed for faster animation
 const lineRevealIntraClusterDelay = 40; // Much shorter delay between lines in same cluster
 const lineRevealInterClusterDelay = 100; // Delay between different clusters starting
 
+// Variables for sphere hover redirect feature
+let isRedirecting = false;
+let redirectHoverTimer = null;
+let redirectTransitionTimer = null;
+let lastMouseMoveTime = Date.now();
+let mouseHasMovedRecently = true;
+const HOVER_DELAY = 1000; // 1 second hover delay
+const REDIRECT_TRANSITION_DURATION = 2000; // 2 second transition
+let redirectOverlay = null;
+let redirectSpinner = null;
+let redirectText = null;
+
+// Raycaster for detecting sphere hover
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// Create redirect overlay elements
+function createRedirectOverlay() {
+    // Create overlay container
+    redirectOverlay = document.createElement('div');
+    redirectOverlay.style.position = 'fixed';
+    redirectOverlay.style.top = '0';
+    redirectOverlay.style.left = '0';
+    redirectOverlay.style.width = '100%';
+    redirectOverlay.style.height = '100%';
+    redirectOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+    redirectOverlay.style.transition = 'background-color 2s ease-in-out';
+    redirectOverlay.style.pointerEvents = 'none';
+    redirectOverlay.style.zIndex = '1000';
+    redirectOverlay.style.display = 'none';
+    
+    // Create spinner container
+    const spinnerContainer = document.createElement('div');
+    spinnerContainer.style.position = 'absolute';
+    spinnerContainer.style.top = '50%';
+    spinnerContainer.style.left = '50%';
+    spinnerContainer.style.transform = 'translate(-50%, -50%)';
+    spinnerContainer.style.textAlign = 'center';
+    spinnerContainer.style.opacity = '0';
+    spinnerContainer.style.transition = 'opacity 0.5s ease-in-out';
+    
+    // Create spinner (similar to intelligence page)
+    redirectSpinner = document.createElement('div');
+    redirectSpinner.style.border = '4px solid rgba(255, 255, 255, 0.1)';
+    redirectSpinner.style.borderTop = '4px solid #ffffff';
+    redirectSpinner.style.borderRadius = '50%';
+    redirectSpinner.style.width = '50px';
+    redirectSpinner.style.height = '50px';
+    redirectSpinner.style.margin = '0 auto 20px';
+    redirectSpinner.style.animation = 'spin 1s linear infinite';
+    
+    // Create text
+    redirectText = document.createElement('p');
+    redirectText.style.color = '#ffffff';
+    redirectText.style.fontSize = '1.2rem';
+    redirectText.style.fontFamily = 'Arial, sans-serif';
+    redirectText.textContent = 'Redirecting to Intelligence';
+    
+    // Add spinner animation if not already defined
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(styleSheet);
+    
+    // Assemble elements
+    spinnerContainer.appendChild(redirectSpinner);
+    spinnerContainer.appendChild(redirectText);
+    redirectOverlay.appendChild(spinnerContainer);
+    document.body.appendChild(redirectOverlay);
+}
+
+// Check if mouse is over the sphere
+function isMouseOverSphere(event) {
+    // Don't check during transitions or on mobile
+    if (isTransitioning || isMobileView || isRedirecting) return false;
+    
+    // Update mouse coordinates
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    // Update raycaster
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Create an invisible sphere at origin to test intersection
+    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, 32, 32);
+    const sphereMesh = new THREE.Mesh(sphereGeometry);
+    sphereMesh.position.set(0, 0, 0);
+    
+    // Check intersection
+    const intersects = raycaster.intersectObject(sphereMesh);
+    
+    // Clean up
+    sphereGeometry.dispose();
+    
+    return intersects.length > 0;
+}
+
+// Start redirect process
+function startRedirect() {
+    if (isRedirecting) return;
+    
+    isRedirecting = true;
+    redirectOverlay.style.display = 'block';
+    
+    // Start transition after a brief delay
+    setTimeout(() => {
+        redirectOverlay.style.backgroundColor = 'rgba(0, 0, 0, 1)';
+        redirectOverlay.querySelector('div').style.opacity = '1';
+    }, 50);
+    
+    // Set timer for actual redirect
+    redirectTransitionTimer = setTimeout(() => {
+        window.location.href = 'intelligence.html';
+    }, REDIRECT_TRANSITION_DURATION);
+}
+
+// Cancel redirect process
+function cancelRedirect() {
+    if (!isRedirecting) return;
+    
+    isRedirecting = false;
+    
+    // Clear timers
+    if (redirectHoverTimer) {
+        clearTimeout(redirectHoverTimer);
+        redirectHoverTimer = null;
+    }
+    
+    if (redirectTransitionTimer) {
+        clearTimeout(redirectTransitionTimer);
+        redirectTransitionTimer = null;
+    }
+    
+    // Fade out overlay
+    redirectOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+    redirectOverlay.querySelector('div').style.opacity = '0';
+    
+    // Hide overlay after transition
+    setTimeout(() => {
+        redirectOverlay.style.display = 'none';
+    }, 500);
+}
+
+// Initialize redirect overlay on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    if (!isMobileView) {
+        document.body.style.cursor = 'grab'; // Set initial cursor style for desktop
+    }
+    createRedirectOverlay(); // Initialize redirect overlay
+});
+
 camera.position.z = cameraDistance;
 camera.position.y = 0;
 camera.position.x = 0;
@@ -88,6 +243,22 @@ document.addEventListener('mousedown', (event) => {
 });
 
 document.addEventListener('mousemove', (event) => {
+    // Track mouse movement time
+    lastMouseMoveTime = Date.now();
+    mouseHasMovedRecently = true;
+    
+    // Cancel any ongoing redirect if mouse moves
+    if (isRedirecting) {
+        cancelRedirect();
+    }
+    
+    // Clear hover timer if mouse moves
+    if (redirectHoverTimer) {
+        clearTimeout(redirectHoverTimer);
+        redirectHoverTimer = null;
+    }
+    
+    // Handle dragging
     if (isMouseDragging) {
         const mouseX = event.clientX;
         const mouseY = event.clientY;
@@ -99,12 +270,36 @@ document.addEventListener('mousemove', (event) => {
 
         targetRotationY -= deltaX * 0.01;
         targetRotationX -= deltaY * 0.01;
+    } else if (!isMobileView && !isTransitioning) {
+        // Check if hovering over sphere when not dragging
+        if (isMouseOverSphere(event)) {
+            // Start hover timer
+            redirectHoverTimer = setTimeout(() => {
+                // Check if mouse is still over sphere and hasn't moved
+                const timeSinceLastMove = Date.now() - lastMouseMoveTime;
+                if (timeSinceLastMove >= HOVER_DELAY - 50 && isMouseOverSphere(event)) {
+                    startRedirect();
+                }
+            }, HOVER_DELAY);
+            
+            // Change cursor to indicate interactive area
+            document.body.style.cursor = 'pointer';
+        } else {
+            // Reset cursor when not over sphere
+            document.body.style.cursor = 'grab';
+        }
     }
 });
 
-document.addEventListener('mouseup', () => {
+document.addEventListener('mouseup', (event) => {
     isMouseDragging = false;
-    document.body.style.cursor = 'grab'; // Change cursor back to indicate grabbable
+    
+    // Check if we're over the sphere to set appropriate cursor
+    if (!isMobileView && !isTransitioning && isMouseOverSphere(event)) {
+        document.body.style.cursor = 'pointer';
+    } else {
+        document.body.style.cursor = 'grab';
+    }
 });
 
 document.addEventListener('mouseleave', () => {
@@ -112,11 +307,15 @@ document.addEventListener('mouseleave', () => {
         isMouseDragging = false;
         document.body.style.cursor = 'grab'; // Ensure cursor reverts if mouse leaves window
     }
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    if (!isMobileView) {
-        document.body.style.cursor = 'grab'; // Set initial cursor style for desktop
+    
+    // Cancel redirect if mouse leaves window
+    if (redirectHoverTimer) {
+        clearTimeout(redirectHoverTimer);
+        redirectHoverTimer = null;
+    }
+    
+    if (isRedirecting) {
+        cancelRedirect();
     }
 });
 
