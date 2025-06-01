@@ -1249,6 +1249,47 @@ footer {
     .chart-nav-btn:active {
         background-color: rgba(255, 255, 255, 0.2);
     }
+    
+    /* Chart canvas touch feedback */
+    .chart-container canvas {
+        touch-action: pan-x pan-y;
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+    }
+    
+    /* Long press visual indicator */
+    .chart-container::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+    
+    .chart-container.touch-holding::after {
+        opacity: 1;
+        animation: touchRipple 0.5s ease-out;
+    }
+    
+    @keyframes touchRipple {
+        from {
+            width: 40px;
+            height: 40px;
+            opacity: 0.8;
+        }
+        to {
+            width: 80px;
+            height: 80px;
+            opacity: 1;
+        }
+    }
 }
 
 /* High DPI screens */

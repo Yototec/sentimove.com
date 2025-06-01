@@ -952,6 +952,152 @@ function createScatterPlot(events, marketData) {
     
     // Store the data points for chunk animation
     sentimentChart.starsByChunk = chunkGroups;
+    
+    // Add touch event handling for mobile long-press
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        addMobileTouchHandlers(ctx.canvas);
+    }
+}
+
+// Add mobile touch handlers for long-press detection
+function addMobileTouchHandlers(canvas) {
+    let touchStartTime = 0;
+    let touchTimer = null;
+    let touchedPoint = null;
+    let isTouchMoving = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    
+    const chartContainer = canvas.closest('.chart-container');
+    
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return; // Only handle single touch
+        
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        touchStartX = x;
+        touchStartY = y;
+        touchStartTime = Date.now();
+        isTouchMoving = false;
+        
+        // Find if we're touching a point
+        const canvasPosition = Chart.helpers.getRelativePosition(e, sentimentChart);
+        const datasetIndex = sentimentChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+        
+        if (datasetIndex.length > 0) {
+            const firstPoint = datasetIndex[0];
+            const dataset = sentimentChart.data.datasets[firstPoint.datasetIndex];
+            
+            // Skip constellation lines
+            if (dataset.type !== 'line' || !dataset.label?.startsWith('Constellation')) {
+                touchedPoint = dataset.data[firstPoint.index];
+                
+                // Add visual feedback for long press
+                chartContainer.classList.add('touch-holding');
+                
+                // Set up long press timer (500ms for mobile)
+                touchTimer = setTimeout(() => {
+                    if (!isTouchMoving && touchedPoint && touchedPoint.chunkKey) {
+                        // Haptic feedback if available
+                        if (navigator.vibrate) {
+                            navigator.vibrate(50);
+                        }
+                        
+                        // Stop any existing animation
+                        stopProgressiveConstellation();
+                        currentHoveredChunk = touchedPoint.chunkKey;
+                        
+                        // Start progressive constellation animation
+                        if (!isShowingSummary) {
+                            startProgressiveConstellation(touchedPoint.chunkKey);
+                        }
+                    }
+                }, 500); // 500ms for long press
+            }
+        }
+    });
+    
+    canvas.addEventListener('touchmove', (e) => {
+        if (e.touches.length !== 1) return;
+        
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        // Check if moved more than 10 pixels
+        const moveDistance = Math.sqrt(Math.pow(x - touchStartX, 2) + Math.pow(y - touchStartY, 2));
+        if (moveDistance > 10) {
+            isTouchMoving = true;
+            
+            // Remove visual feedback
+            chartContainer.classList.remove('touch-holding');
+            
+            // Cancel long press timer
+            if (touchTimer) {
+                clearTimeout(touchTimer);
+                touchTimer = null;
+            }
+            
+            // Stop any ongoing animation
+            stopProgressiveConstellation();
+        }
+    });
+    
+    canvas.addEventListener('touchend', (e) => {
+        const touchDuration = Date.now() - touchStartTime;
+        
+        // Remove visual feedback
+        chartContainer.classList.remove('touch-holding');
+        
+        // Clear long press timer
+        if (touchTimer) {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+        }
+        
+        // If it was a quick tap (less than 500ms) and not moving
+        if (touchDuration < 500 && !isTouchMoving && touchedPoint) {
+            // Handle as a normal click - highlight the event
+            if (touchedPoint.eventIndex !== undefined) {
+                // Clear all highlights first
+                document.querySelectorAll('.event-item').forEach(item => {
+                    item.classList.remove('highlighted');
+                });
+                
+                // Highlight the clicked point's corresponding event
+                highlightEventItem(touchedPoint.eventIndex);
+                
+                // Keep the event highlighted for 3 seconds on mobile
+                setTimeout(() => {
+                    document.querySelectorAll('.event-item').forEach(item => {
+                        item.classList.remove('highlighted');
+                    });
+                }, 3000);
+            }
+        }
+        
+        // Reset
+        touchedPoint = null;
+        isTouchMoving = false;
+    });
+    
+    canvas.addEventListener('touchcancel', () => {
+        // Remove visual feedback
+        chartContainer.classList.remove('touch-holding');
+        
+        // Clear any timers and reset state
+        if (touchTimer) {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+        }
+        touchedPoint = null;
+        isTouchMoving = false;
+        stopProgressiveConstellation();
+    });
 }
 
 // Display events list
