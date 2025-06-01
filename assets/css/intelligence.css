@@ -90,10 +90,22 @@ nav {
     cursor: pointer;
     font-family: inherit;
     line-height: 1;
+    /* Ensure consistent height for all buttons */
+    height: 36px;
+    /* Normalize appearance across browsers */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
 .symbol-selector {
     min-width: 80px;
+    /* Additional styling for select element */
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 0l6 6 6-6' fill='%23ffffff'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px 6px;
+    padding-right: 28px; /* Make room for arrow */
 }
 
 .symbol-selector option {
@@ -853,21 +865,25 @@ footer {
         flex-direction: row;
         flex-wrap: wrap;
         justify-content: space-between;
-        gap: 8px;
+        gap: 6px; /* Reduced gap */
     }
     
     .nav-link,
     .change-api-key-btn,
     .symbol-selector {
-        font-size: 0.9rem;
-        padding: 8px 16px;
+        font-size: 0.8rem; /* Smaller font */
+        padding: 5px 10px; /* Smaller padding */
         margin: 0;
+        height: 32px; /* Smaller consistent height */
+        min-height: 32px;
     }
     
     .symbol-selector {
-        min-width: 80px;
+        min-width: 70px; /* Smaller minimum width */
         flex: 1;
-        max-width: 120px;
+        max-width: 100px; /* Smaller max width */
+        background-size: 10px 5px; /* Smaller arrow */
+        padding-right: 24px; /* Adjust for smaller arrow */
     }
     
     /* Footer adjustments */
@@ -950,16 +966,23 @@ footer {
     }
     
     nav {
-        gap: 6px;
+        gap: 4px; /* Even smaller gap */
     }
     
     .nav-link,
     .change-api-key-btn,
     .symbol-selector {
-        font-size: 0.85rem;
-        padding: 6px 12px;
-        min-height: 32px; /* Ensure minimum height for proper vertical centering */
+        font-size: 0.75rem; /* Even smaller font */
+        padding: 4px 8px; /* Even smaller padding */
+        min-height: 28px; /* Even smaller height */
+        height: 28px;
         line-height: normal; /* Reset line-height to allow flexbox to center properly */
+    }
+    
+    .symbol-selector {
+        min-width: 60px; /* Even smaller minimum width */
+        background-size: 8px 4px; /* Even smaller arrow */
+        padding-right: 20px; /* Adjust for even smaller arrow */
     }
     
     footer {
@@ -1064,6 +1087,52 @@ footer {
 .ios-device .container {
     height: calc(var(--vh, 1vh) * 100);
     min-height: calc(var(--vh, 1vh) * 100);
+}
+
+/* iOS specific button fixes */
+.ios-device .nav-link,
+.ios-device .change-api-key-btn,
+.ios-device .symbol-selector {
+    /* Force consistent appearance on iOS */
+    -webkit-appearance: none;
+    -webkit-border-radius: 4px;
+    /* Ensure consistent rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Fix iOS tap highlight */
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Ensure select element looks consistent on iOS */
+.ios-device .symbol-selector {
+    /* Remove iOS default styling */
+    background-color: transparent;
+    /* Ensure the custom arrow is visible */
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 0l6 6 6-6' fill='%23ffffff'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+}
+
+/* iOS mobile specific */
+@media (max-width: 768px) {
+    .ios-device .nav-link,
+    .ios-device .change-api-key-btn,
+    .ios-device .symbol-selector {
+        /* Ensure exact same height on iOS mobile */
+        height: 32px !important;
+        min-height: 32px !important;
+        max-height: 32px !important;
+        /* Ensure text is vertically centered */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .ios-device .symbol-selector {
+        /* Adjust text position for select */
+        text-align: left;
+        justify-content: flex-start;
+    }
 }
 
 .ios-device body {
