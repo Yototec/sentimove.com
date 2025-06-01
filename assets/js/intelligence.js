@@ -323,6 +323,12 @@ function addApiKeyButton() {
     const header = document.querySelector('header nav');
     if (!header) return;
     
+    // First, update the Back to Home text to just Home
+    const backLink = header.querySelector('.nav-link');
+    if (backLink && backLink.textContent.includes('Back to Home')) {
+        backLink.textContent = '← Home';
+    }
+    
     // Create View API Key button
     const viewButton = document.createElement('button');
     viewButton.className = 'change-api-key-btn view-api-key-btn';

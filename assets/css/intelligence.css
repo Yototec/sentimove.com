@@ -1265,27 +1265,57 @@ footer {
     /* Navigation adjustments */
     nav {
         flex-direction: row;
-        flex-wrap: wrap;
+        flex-wrap: nowrap; /* Prevent wrapping to keep all buttons in one row */
         justify-content: space-between;
-        gap: 6px; /* Reduced gap */
+        gap: 3px; /* Very small gap */
+        overflow-x: auto; /* Allow horizontal scroll if needed */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
     }
     
     .nav-link,
     .change-api-key-btn,
     .symbol-selector {
-        font-size: 0.8rem; /* Smaller font */
-        padding: 5px 10px; /* Smaller padding */
+        font-size: 0.65rem; /* Smaller font to fit text */
+        padding: 4px 5px; /* Very compact padding */
         margin: 0;
-        height: 32px; /* Smaller consistent height */
-        min-height: 32px;
+        height: 30px; /* Smaller height */
+        min-height: 30px;
+        flex-shrink: 0; /* Prevent shrinking below minimum */
+        white-space: nowrap; /* Prevent text wrapping */
+    }
+    
+    /* Remove the pseudo-element styles - we'll use the actual text */
+    .view-api-key-btn {
+        /* Remove font-size: 0 */
+    }
+    
+    .view-api-key-btn::before {
+        display: none; /* Remove pseudo-element */
+    }
+    
+    .change-api-key-btn:not(.view-api-key-btn) {
+        /* Remove font-size: 0 */
+    }
+    
+    .change-api-key-btn:not(.view-api-key-btn)::before {
+        display: none; /* Remove pseudo-element */
+    }
+    
+    .nav-link {
+        /* Remove font-size: 0 */
+    }
+    
+    .nav-link::before {
+        display: none; /* Remove pseudo-element */
     }
     
     .symbol-selector {
-        min-width: 70px; /* Smaller minimum width */
-        flex: 1;
-        max-width: 100px; /* Smaller max width */
-        background-size: 10px 5px; /* Smaller arrow */
-        padding-right: 24px; /* Adjust for smaller arrow */
+        min-width: 50px; /* Compact width */
+        flex: 0 0 auto; /* Don't grow or shrink */
+        max-width: 60px; /* Smaller max width */
+        background-size: 8px 4px; /* Smaller arrow */
+        padding-right: 16px; /* Adjust for smaller arrow */
+        font-size: 0.65rem; /* Ensure font size is applied */
     }
     
     /* Footer adjustments */
@@ -1387,23 +1417,25 @@ footer {
     }
     
     nav {
-        gap: 4px; /* Even smaller gap */
+        gap: 3px; /* Even smaller gap for very small screens */
     }
     
     .nav-link,
     .change-api-key-btn,
     .symbol-selector {
-        font-size: 0.75rem; /* Even smaller font */
-        padding: 4px 8px; /* Even smaller padding */
-        min-height: 28px; /* Even smaller height */
+        font-size: 0.6rem; /* Even smaller for very small screens */
+        padding: 4px 4px; /* Minimal padding */
+        min-height: 28px; /* Keep original smaller height */
         height: 28px;
         line-height: normal; /* Reset line-height to allow flexbox to center properly */
     }
     
     .symbol-selector {
-        min-width: 60px; /* Even smaller minimum width */
-        background-size: 8px 4px; /* Even smaller arrow */
-        padding-right: 20px; /* Adjust for even smaller arrow */
+        min-width: 48px; /* Even smaller minimum width */
+        max-width: 55px; /* Even smaller max width */
+        background-size: 8px 4px; /* Keep smaller arrow */
+        padding-right: 15px; /* Adjust for smaller arrow */
+        font-size: 0.6rem; /* Ensure font size is applied */
     }
     
     footer {
@@ -1605,9 +1637,9 @@ footer {
     .ios-device .change-api-key-btn,
     .ios-device .symbol-selector {
         /* Ensure exact same height on iOS mobile */
-        height: 32px !important;
-        min-height: 32px !important;
-        max-height: 32px !important;
+        height: 30px !important;
+        min-height: 30px !important;
+        max-height: 30px !important;
         /* Ensure text is vertically centered */
         display: flex;
         align-items: center;
