@@ -3,6 +3,10 @@ const scene = new THREE.Scene();
 let isMobileView = window.innerWidth < 768;
 console.log("Initial mobile detection:", isMobileView, "Width:", window.innerWidth);
 
+// Add ambient light to improve star visibility, especially on mobile
+const ambientLight = new THREE.AmbientLight(0xffffff, isMobileView ? 0.3 : 0.1);
+scene.add(ambientLight);
+
 const sphereRadius = 100;
 
 const camera = new THREE.PerspectiveCamera(
@@ -247,7 +251,10 @@ vignetteContainer.style.width = '100%';
 vignetteContainer.style.height = '100%';
 vignetteContainer.style.pointerEvents = 'none';
 vignetteContainer.style.borderRadius = '50%';
-vignetteContainer.style.boxShadow = 'inset 0 0 150px 150px rgba(0, 0, 0, 0.95)';
+// Reduce vignette intensity on mobile for better star visibility
+vignetteContainer.style.boxShadow = isMobileView ? 
+    'inset 0 0 80px 80px rgba(0, 0, 0, 0.7)' : 
+    'inset 0 0 150px 150px rgba(0, 0, 0, 0.95)';
 vignetteContainer.style.zIndex = '10';
 document.body.appendChild(vignetteContainer);
 
@@ -508,6 +515,11 @@ window.addEventListener('resize', () => {
     if (wasMobile !== isMobileView) {
         console.log("Mobile state changed:", isMobileView, "Width:", window.innerWidth);
         blockNavUI.style.bottom = isMobileView ? '60px' : '40px';
+        
+        // Update vignette intensity based on mobile/desktop
+        vignetteContainer.style.boxShadow = isMobileView ? 
+            'inset 0 0 80px 80px rgba(0, 0, 0, 0.7)' : 
+            'inset 0 0 150px 150px rgba(0, 0, 0, 0.95)';
     }
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -1013,11 +1025,11 @@ function createStarsForBlock(blockNumber) {
         // Use 100% saturation and high lightness for more vibrant stars
         const starColor = new THREE.Color(`hsl(${hue}, 100%, 80%)`);
 
-        // Make stars smaller but brighter on mobile
-        const starSize = isMobileView ? 1.2 : 0.8; // Increased size for both desktop and mobile
+        // Make stars significantly larger and brighter on mobile
+        const starSize = isMobileView ? 2.0 : 1.0; // Much larger on mobile
         const mobileStarGeometry = new THREE.SphereGeometry(starSize, isMobileView ? 16 : 32, isMobileView ? 16 : 32);
 
-        const baseEmissiveIntensity = isMobileView ? 15.0 : 4.0; // Higher brightness on both mobile and desktop
+        const baseEmissiveIntensity = isMobileView ? 25.0 : 5.0; // Much higher brightness on mobile
 
         const star = new THREE.Mesh(mobileStarGeometry, new THREE.MeshBasicMaterial({
             color: starColor,
@@ -1221,10 +1233,10 @@ function createStarsForBlock(blockNumber) {
 
             const baseOpacity = isMobileView ? 1.0 : 0.8;
             const constellationLineMat = new THREE.LineBasicMaterial({
-                color: new THREE.Color(`hsl(${hue}, 100%, 60%)`), // More saturated color for lines
-                opacity: baseOpacity, // More visible lines on desktop too
+                color: new THREE.Color(`hsl(${hue}, 100%, 80%)`), // Brighter color for mobile
+                opacity: baseOpacity,
                 transparent: true,
-                linewidth: isMobileView ? 3.0 : 1.0 // Thicker lines on desktop too
+                linewidth: isMobileView ? 5.0 : 2.0 // Much thicker lines on mobile
             });
             const constellationLine = new THREE.Line(constellationLineGeo, constellationLineMat);
             scene.add(constellationLine);
@@ -1492,7 +1504,7 @@ function animate() {
         if (star.material) {
             star.material.emissiveIntensity = star.userData.baseEmissiveIntensity
                 ? star.userData.baseEmissiveIntensity * currentBlinkIntensity
-                : (isMobileView ? 15.0 : 4.0) * currentBlinkIntensity;
+                : (isMobileView ? 25.0 : 5.0) * currentBlinkIntensity; // Updated to match new values
         }
     });
 
@@ -1707,12 +1719,12 @@ function createEmergencyFallbackStars() {
         const z = 30; // Place closer to camera for visibility
 
         // Bigger and brighter stars for visibility
-        const starSize = isMobileView ? 3.0 : 2.5; // Increased size for both mobile and desktop
+        const starSize = isMobileView ? 4.0 : 2.5; // Even larger for mobile emergency stars
         const starGeom = new THREE.SphereGeometry(starSize, 16, 16);
 
         // Use a variety of bright colors
         const color = colors[i % colors.length];
-        const baseEmissiveIntensity = isMobileView ? 20.0 : 5.0; // Increased brightness for both
+        const baseEmissiveIntensity = isMobileView ? 30.0 : 6.0; // Even brighter for emergency stars
 
         const starMat = new THREE.MeshBasicMaterial({
             color: color,
