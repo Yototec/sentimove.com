@@ -519,6 +519,50 @@ main {
     box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
 }
 
+/* Pattern matching styles */
+.event-item.pattern-matched {
+    border-color: rgba(255, 165, 0, 0.6); /* Orange border for pattern matches */
+    background: rgba(255, 165, 0, 0.1);
+    box-shadow: 0 0 25px rgba(255, 165, 0, 0.3);
+    position: relative;
+}
+
+.event-item.pattern-matched::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, 
+        rgba(255, 165, 0, 0.5), 
+        rgba(255, 200, 0, 0.3), 
+        rgba(255, 165, 0, 0.5));
+    border-radius: 7px;
+    z-index: -1;
+    animation: patternGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes patternGlow {
+    0% { opacity: 0.3; }
+    100% { opacity: 0.7; }
+}
+
+.pattern-indicator {
+    font-size: 1.2rem;
+    color: #ffaa00;
+    cursor: help;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+}
+
+.pattern-indicator:hover {
+    color: #ffcc44;
+    transform: scale(1.2);
+}
+
 .event-header {
     display: flex;
     justify-content: space-between;
@@ -1069,6 +1113,62 @@ footer {
     margin-top: 15px;
 }
 
+/* Events section styles */
+.events-section {
+    width: 40%;
+    padding: 20px;
+    padding-right: 10px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.events-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.events-header h3 {
+    color: #ffffff;
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+.pattern-help {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: #cccccc;
+    cursor: help;
+    transition: color 0.3s ease;
+}
+
+.pattern-help:hover {
+    color: #ffffff;
+}
+
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border: 1px solid #666;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.help-text {
+    white-space: nowrap;
+    opacity: 0.8;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     /* Container adjustments */
@@ -1140,28 +1240,24 @@ footer {
         padding: 15px;
     }
     
-    .event-item {
-        padding: 12px;
-        margin-bottom: 8px;
-    }
-    
-    .event-header {
-        flex-wrap: wrap;
+    /* Events header adjustments for mobile */
+    .events-header {
+        flex-direction: column;
+        align-items: flex-start;
         gap: 8px;
+        margin-bottom: 10px;
     }
     
-    .event-timestamp {
-        font-size: 0.8rem;
+    .events-header h3 {
+        font-size: 1.1rem;
     }
     
-    .event-summary {
-        font-size: 0.9rem;
-        line-height: 1.5;
+    .pattern-help {
+        font-size: 0.75rem;
     }
     
-    .event-footer {
-        flex-wrap: wrap;
-        gap: 8px;
+    .help-text {
+        white-space: normal; /* Allow text wrapping on mobile */
     }
     
     /* Chart container adjustments */
@@ -1718,4 +1814,74 @@ footer {
 
 .ios-device .container {
     -webkit-overflow-scrolling: touch;
-} 
+}
+
+/* Pattern notification styles */
+.pattern-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #ffaa00;
+    border-radius: 8px;
+    padding: 0;
+    z-index: 10000;
+    animation: slideInFromRight 0.3s ease-out;
+    max-width: 300px;
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px;
+}
+
+.notification-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.notification-text {
+    flex: 1;
+    color: #ffffff;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.notification-text strong {
+    color: #ffaa00;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: #cccccc;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.notification-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
