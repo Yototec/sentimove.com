@@ -78,7 +78,7 @@
   <div class="container">
     <header>
       <nav>
-        <a href="index.html" class="nav-link">← Home</a>
+        <a href="/" class="nav-link">← Home</a>
         <select id="symbolSelector" class="symbol-selector">
           <option value="BTC">BTC</option>
           <option value="ETH">ETH</option>
@@ -102,9 +102,15 @@
       </div>
 
       <div class="content" id="content" style="display: none;">
-        <div class="main-layout">
-          <!-- Left side: Recent Events (40%) -->
+        <div class="main-layout">          <!-- Left side: Recent Events (40%) -->
           <div class="events-section">
+            <div class="events-header">
+              <h3>Recent Events</h3>
+              <div class="pattern-help" title="Double-click any event with 🔗 to highlight similar patterns based on shared keywords">
+                <span class="help-icon">?</span>
+                <span class="help-text">Double-click 🔗 events to find similar patterns</span>
+              </div>
+            </div>
             <div class="events-list">
               <div id="eventsContainer"></div>
             </div>

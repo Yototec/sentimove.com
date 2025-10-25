@@ -69,6 +69,147 @@ let TICKER = 'BTC'; // Default ticker
 // API Key management
 let API_KEY = null;
 
+// Pattern matching state
+let isPatternMatchingActive = false;
+let currentPatternKeywords = [];
+let patternMatchedIndices = new Set();
+let lastClickTime = 0;
+const DOUBLE_CLICK_THRESHOLD = 300; // milliseconds
+
+// Pattern matching utilities
+function getCommonKeywords(keywords1, keywords2) {
+    if (!Array.isArray(keywords1) || !Array.isArray(keywords2)) {
+        return [];
+    }
+    return keywords1.filter(keyword => keywords2.includes(keyword));
+}
+
+function hasPatternSimilarity(event1, event2, minCommonWords = 5) {
+    // Both events must have pattern enabled
+    if (!event1.pattern || !event2.pattern) {
+        return false;
+    }
+    
+    const commonKeywords = getCommonKeywords(event1.pattern_keywords, event2.pattern_keywords);
+    return commonKeywords.length >= minCommonWords;
+}
+
+function findSimilarPatterns(targetEvent, allEvents, minCommonWords = 5) {
+    const similarIndices = [];
+    
+    allEvents.forEach((event, index) => {
+        if (hasPatternSimilarity(targetEvent, event, minCommonWords)) {
+            similarIndices.push(index);
+        }
+    });
+    
+    return similarIndices;
+}
+
+function highlightPatternMatches(targetEventIndex) {
+    if (!allEventsData || targetEventIndex >= allEventsData.length) {
+        return;
+    }
+    
+    const targetEvent = allEventsData[targetEventIndex];
+    if (!targetEvent.pattern || !targetEvent.pattern_keywords || targetEvent.pattern_keywords.length === 0) {
+        console.log('Selected event has no pattern keywords');
+        return;
+    }
+    
+    const similarIndices = findSimilarPatterns(targetEvent, allEventsData);
+    
+    if (similarIndices.length <= 1) { // Only the target event itself
+        console.log('No similar patterns found');
+        return;
+    }
+    
+    // Store pattern matching state
+    isPatternMatchingActive = true;
+    currentPatternKeywords = [...targetEvent.pattern_keywords];
+    patternMatchedIndices = new Set(similarIndices);
+    
+    // Highlight matching points in chart
+    highlightChartPatterns(similarIndices);
+    
+    // Highlight matching events in list
+    highlightEventPatterns(similarIndices);
+    
+    console.log(`Pattern matching activated: found ${similarIndices.length} similar events with keywords:`, targetEvent.pattern_keywords);
+    
+    // Show a brief notification
+    showPatternNotification(similarIndices.length, targetEvent.pattern_keywords);
+}
+
+function highlightChartPatterns(matchingIndices) {
+    if (!sentimentChart) return;
+    
+    // Reset all point styles first
+    sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type === 'scatter') {
+            dataset.pointRadius = dataset.data.map(() => 6);
+            dataset.pointHoverRadius = dataset.data.map(() => 10);
+            dataset.pointBorderWidth = dataset.data.map(() => 1);
+        }
+    });
+    
+    // Highlight matching points
+    sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type === 'scatter') {
+            dataset.data.forEach((point, pointIndex) => {
+                if (point.eventIndex !== undefined && matchingIndices.includes(point.eventIndex)) {
+                    // Make matching points larger and more prominent
+                    dataset.pointRadius[pointIndex] = 10;
+                    dataset.pointHoverRadius[pointIndex] = 14;
+                    dataset.pointBorderWidth[pointIndex] = 3;
+                }
+            });
+        }
+    });
+    
+    sentimentChart.update('none'); // Update without animation
+}
+
+function highlightEventPatterns(matchingIndices) {
+    // Clear existing highlights first
+    document.querySelectorAll('.event-item').forEach(item => {
+        item.classList.remove('highlighted', 'pattern-matched');
+    });
+    
+    // Highlight matching events
+    matchingIndices.forEach(index => {
+        const eventElement = document.querySelector(`[data-event-index="${index}"]`);
+        if (eventElement) {
+            eventElement.classList.add('pattern-matched');
+        }
+    });
+}
+
+function clearPatternHighlights() {
+    isPatternMatchingActive = false;
+    currentPatternKeywords = [];
+    patternMatchedIndices.clear();
+    
+    // Reset chart point styles
+    if (sentimentChart) {
+        sentimentChart.data.datasets.forEach(dataset => {
+            if (dataset.type === 'scatter') {
+                dataset.pointRadius = dataset.data.map(() => 6);
+                dataset.pointHoverRadius = dataset.data.map(() => 10);
+                dataset.pointBorderWidth = dataset.data.map(() => 1);
+            }
+        });
+        sentimentChart.update('none');
+    }
+    
+    // Clear event list highlights
+    document.querySelectorAll('.event-item').forEach(item => {
+        item.classList.remove('highlighted', 'pattern-matched');
+    });
+    
+    console.log('Pattern highlighting cleared');
+}
+
 // Get saved symbol or default
 function getSelectedSymbol() {
     const savedSymbol = localStorage.getItem('selected_symbol');
@@ -545,14 +686,16 @@ async function loadData() {
     
     // Stop any ongoing animations
     stopProgressiveConstellation();
-    
-    // Reset chunk tracking when loading new symbol
+      // Reset chunk tracking when loading new symbol
     loadedChunks.clear();
     allEventsData = [];
     marketData = {};
     chunkSummaries = {}; // Reset chunk summaries
     leftButtonClickCount = 0; // Reset click counter for new symbol
     isShowingSummary = false; // Reset summary view state
+    
+    // Reset pattern matching state
+    clearPatternHighlights();
     
     try {
         // Step 1: Get available chunks
@@ -728,12 +871,14 @@ function processReasoningData(data, chunkInfo) {
         if (!Array.isArray(eventsArray)) {
             throw new Error('Events data is not an array');
         }
-        
-        // Add chunk information to each event
+          // Add chunk information to each event and ensure pattern data is preserved
         const chunkKey = chunkInfo ? `${chunkInfo.chunk_start}-${chunkInfo.chunk_end}` : null;
         eventsArray = eventsArray.map(event => ({
             ...event,
-            chunkKey: chunkKey
+            chunkKey: chunkKey,
+            // Ensure pattern data exists with defaults
+            pattern: event.pattern || false,
+            pattern_keywords: event.pattern_keywords || []
         }));
         
         // Sort by timestamp (all timestamps are UTC)
@@ -852,15 +997,17 @@ function createScatterPlot(events, marketData) {
         } else {
             eventTime = new Date(event.timestamp + 'Z');
         }
-        
-        return {
+          return {
             x: eventTime,
             y: price,
             summary: event.summary,
             sentiment: event.sentiment,
             event: event.event,
             eventIndex: index, // Store original index
-            chunkKey: event.chunkKey // Use chunk key from event
+            chunkKey: event.chunkKey, // Use chunk key from event
+            pattern: event.pattern,
+            pattern_keywords: event.pattern_keywords,
+            ID: event.ID
         };
     }).filter(point => point.y !== null && point.y !== undefined); // Filter out points without price data
     
@@ -1132,8 +1279,11 @@ function createScatterPlot(events, marketData) {
                         });
                     }
                 }
-            },
-            onClick: (event, activeElements) => {
+            },            onClick: (event, activeElements) => {
+                const currentTime = Date.now();
+                const isDoubleClick = currentTime - lastClickTime < DOUBLE_CLICK_THRESHOLD;
+                lastClickTime = currentTime;
+                
                 // If showing summary, clicking anywhere reverts to events view
                 if (isShowingSummary) {
                     revertToEventsView();
@@ -1153,23 +1303,40 @@ function createScatterPlot(events, marketData) {
                         }
                         
                         if (dataPoint && dataPoint.eventIndex !== undefined) {
-                            // Clear all highlights first
-                            document.querySelectorAll('.event-item').forEach(item => {
-                                item.classList.remove('highlighted');
-                            });
-                            
-                            // Highlight the clicked point's corresponding event
-                            highlightEventItem(dataPoint.eventIndex);
-                            
-                            // Keep the event highlighted for mobile
-                            if ('ontouchstart' in window) {
-                                setTimeout(() => {
+                            if (isDoubleClick) {
+                                // Double-click: activate pattern matching
+                                if (isPatternMatchingActive) {
+                                    // If already in pattern mode, clear it
+                                    clearPatternHighlights();
+                                } else {
+                                    // Activate pattern matching for this event
+                                    highlightPatternMatches(dataPoint.eventIndex);
+                                }
+                            } else {
+                                // Single click: normal highlight behavior
+                                if (!isPatternMatchingActive) {
+                                    // Clear all highlights first
                                     document.querySelectorAll('.event-item').forEach(item => {
                                         item.classList.remove('highlighted');
                                     });
-                                }, 3000); // Remove after 3 seconds on mobile
+                                    
+                                    // Highlight the clicked point's corresponding event
+                                    highlightEventItem(dataPoint.eventIndex);
+                                    
+                                    // Keep the event highlighted for mobile
+                                    if ('ontouchstart' in window) {
+                                        setTimeout(() => {
+                                            document.querySelectorAll('.event-item').forEach(item => {
+                                                item.classList.remove('highlighted');
+                                            });
+                                        }, 3000); // Remove after 3 seconds on mobile
+                                    }
+                                }
                             }
                         }
+                    } else if (isPatternMatchingActive) {
+                        // Clicked on empty area while pattern matching is active - clear it
+                        clearPatternHighlights();
                     }
                 }
             }
@@ -1380,9 +1547,13 @@ function displayEvents(events) {
         // Convert UTC timestamp to local time for display
         const localTime = new Date(event.timestamp + 'Z').toLocaleString();
         const utcTime = event.timestamp + ' UTC';
-        
-        // Get color for event type
+          // Get color for event type
         const eventColor = eventTypeColors[event.event.toLowerCase()] || '#888888';
+        
+        // Create pattern indicator if event has pattern
+        const patternIndicator = event.pattern && event.pattern_keywords && event.pattern_keywords.length > 0 
+            ? `<span class="pattern-indicator" title="Pattern Keywords: ${event.pattern_keywords.join(', ')}" data-keywords="${event.pattern_keywords.join(', ')}">🔗</span>` 
+            : '';
         
         eventElement.innerHTML = `
             <div class="event-header">
@@ -1394,6 +1565,7 @@ function displayEvents(events) {
                 <span class="event-type" style="background-color: ${eventColor}; color: #000000;">
                     ${event.event.toUpperCase()}
                 </span>
+                ${patternIndicator}
             </div>
         `;
         
@@ -1444,29 +1616,47 @@ function displayEvents(events) {
                 eventElement.classList.remove('highlighted');
             }
         });
-        
-        // Also handle click for better compatibility
+          // Handle double-click for pattern matching on event items
+        let eventLastClickTime = 0;
         eventElement.addEventListener('click', (e) => {
+            const currentTime = Date.now();
+            const isDoubleClick = currentTime - eventLastClickTime < DOUBLE_CLICK_THRESHOLD;
+            eventLastClickTime = currentTime;
+            
             // Check if it's a touch device
             if ('ontouchstart' in window) {
                 // Touch device - already handled by touchstart
                 return;
             }
             
-            // Non-touch device - toggle highlight
-            if (eventElement.classList.contains('highlighted')) {
-                resetChartHighlights();
-                eventElement.classList.remove('highlighted');
+            if (isDoubleClick) {
+                // Double-click: activate pattern matching
+                if (isPatternMatchingActive) {
+                    // If already in pattern mode, clear it
+                    clearPatternHighlights();
+                } else {
+                    // Activate pattern matching for this event
+                    highlightPatternMatches(originalIndex);
+                }
             } else {
-                // Remove other highlights first
-                document.querySelectorAll('.event-item').forEach(item => {
-                    item.classList.remove('highlighted');
-                });
-                resetChartHighlights();
-                
-                // Add highlight
-                highlightChartPoint(originalIndex);
-                eventElement.classList.add('highlighted');
+                // Single click: normal highlight behavior
+                if (!isPatternMatchingActive) {
+                    // Non-touch device - toggle highlight
+                    if (eventElement.classList.contains('highlighted')) {
+                        resetChartHighlights();
+                        eventElement.classList.remove('highlighted');
+                    } else {
+                        // Remove other highlights first
+                        document.querySelectorAll('.event-item').forEach(item => {
+                            item.classList.remove('highlighted');
+                        });
+                        resetChartHighlights();
+                        
+                        // Add highlight
+                        highlightChartPoint(originalIndex);
+                        eventElement.classList.add('highlighted');
+                    }
+                }
             }
         });
         
@@ -1869,6 +2059,7 @@ async function loadAdditionalChunk(chunkIndex) {
     isLoadingChunk = true;
     
     // Update button states when loading starts
+   
     updateNavButtonStates();
     
     // Show loading indicator
@@ -1997,3 +2188,36 @@ document.addEventListener('mousemove', (e) => {
         updateInputType('mouse');
     }
 }, { passive: true });
+
+function showPatternNotification(matchCount, keywords) {
+    // Remove any existing notification
+    const existingNotification = document.querySelector('.pattern-notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'pattern-notification';
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">🔗</span>
+            <div class="notification-text">
+                <strong>Pattern Match Found!</strong>
+                <br>
+                <span>${matchCount} events with ${keywords.length} shared keywords</span>
+            </div>
+            <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
