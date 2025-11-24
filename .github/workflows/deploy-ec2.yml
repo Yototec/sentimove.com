@@ -24,3 +24,12 @@ jobs:
             git pull
             sudo chown -R apache:apache /var/www/html
             sudo systemctl restart httpd
+
+      - name: Purge Cloudflare cache
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/8a3e6dd8a7329e03014b3569ee31d686/purge_cache" \
+               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+               -H "Content-Type: application/json" \
+               --data '{"purge_everything":true}'
