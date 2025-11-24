@@ -849,6 +849,36 @@ async function fetchSummaryData(chunkStart, chunkEnd) {
     return null;
 }
 
+// Safely convert timestamps to Date objects (assume UTC when missing)
+function parseTimestampToDate(timestamp) {
+    if (!timestamp) {
+        return null;
+    }
+    
+    if (timestamp instanceof Date) {
+        return Number.isNaN(timestamp.getTime()) ? null : timestamp;
+    }
+    
+    if (typeof timestamp !== 'string') {
+        return null;
+    }
+    
+    let normalized = timestamp.trim();
+    if (!normalized) {
+        return null;
+    }
+    
+    if (normalized.includes(' ')) {
+        normalized = normalized.replace(' ', 'T');
+    }
+    
+    const hasTimezone = /([+\-]\d{2}:?\d{2}|Z)$/i.test(normalized);
+    const dateString = hasTimezone ? normalized : `${normalized}Z`;
+    const date = new Date(dateString);
+    
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
 // Process reasoning data
 function processReasoningData(data, chunkInfo) {
     try {
@@ -882,7 +912,11 @@ function processReasoningData(data, chunkInfo) {
         }));
         
         // Sort by timestamp (all timestamps are UTC)
-        eventsArray.sort((a, b) => new Date(a.timestamp + 'Z') - new Date(b.timestamp + 'Z'));
+        eventsArray.sort((a, b) => {
+            const dateA = parseTimestampToDate(a.timestamp);
+            const dateB = parseTimestampToDate(b.timestamp);
+            return (dateA ? dateA.getTime() : 0) - (dateB ? dateB.getTime() : 0);
+        });
         
         console.log('Processed events count:', eventsArray.length);
         return eventsArray;
@@ -899,10 +933,17 @@ function getTimeRange(events) {
         throw new Error('No events to get time range from');
     }
     
-    // Ensure timestamps are treated as UTC
-    const timestamps = events.map(event => new Date(event.timestamp + 'Z'));
-    const start = new Date(Math.min(...timestamps));
-    const end = new Date(Math.max(...timestamps));
+    const timestampValues = events
+        .map(event => parseTimestampToDate(event.timestamp))
+        .filter(date => date)
+        .map(date => date.getTime());
+    
+    if (timestampValues.length === 0) {
+        throw new Error('No valid event timestamps available');
+    }
+    
+    const start = new Date(Math.min(...timestampValues));
+    const end = new Date(Math.max(...timestampValues));
     
     return {
         start: start.toISOString(),
@@ -931,15 +972,9 @@ async function fetchMarketData(startDate, endDate) {
 
 // Match event timestamp with nearest market data
 function findNearestMarketPrice(eventTimestamp, marketData) {
-    // Try different timestamp parsing approaches
-    let eventTime;
-    
-    // Check if timestamp already has timezone info
-    if (eventTimestamp.includes('Z') || eventTimestamp.includes('+') || eventTimestamp.includes('-')) {
-        eventTime = new Date(eventTimestamp);
-    } else {
-        // Assume UTC if no timezone specified
-        eventTime = new Date(eventTimestamp + 'Z');
+    const eventTime = parseTimestampToDate(eventTimestamp);
+    if (!eventTime) {
+        return null;
     }
     
     let nearestPrice = null;
@@ -949,8 +984,10 @@ function findNearestMarketPrice(eventTimestamp, marketData) {
     const marketEntries = Object.entries(marketData);
     
     for (const [marketTimestamp, priceData] of marketEntries) {
-        // Parse market timestamp
-        const marketTime = new Date(marketTimestamp);
+        const marketTime = parseTimestampToDate(marketTimestamp);
+        if (!marketTime) {
+            continue;
+        }
         const timeDiff = Math.abs(eventTime - marketTime);
         
         if (timeDiff < minTimeDiff) {
@@ -989,14 +1026,12 @@ function createScatterPlot(events, marketData) {
     // Prepare data points with chunk information
     const dataPoints = events.map((event, index) => {
         const price = findNearestMarketPrice(event.timestamp, marketData);
+        const eventTime = parseTimestampToDate(event.timestamp);
         
-        // Ensure consistent timestamp parsing for chart
-        let eventTime;
-        if (event.timestamp.includes('Z') || event.timestamp.includes('+') || event.timestamp.includes('-')) {
-            eventTime = new Date(event.timestamp);
-        } else {
-            eventTime = new Date(event.timestamp + 'Z');
+        if (!eventTime) {
+            return null;
         }
+        
         return {
             x: eventTime,
             y: price,
@@ -1009,7 +1044,7 @@ function createScatterPlot(events, marketData) {
             pattern_keywords: event.pattern_keywords,
             ID: event.ID
         };
-    }).filter(point => point.y !== null && point.y !== undefined); // Filter out points without price data
+    }).filter(point => point && point.y !== null && point.y !== undefined); // Filter out points without price data
     
     if (dataPoints.length === 0) {
         console.error('No valid data points found!');
@@ -1024,14 +1059,8 @@ function createScatterPlot(events, marketData) {
                 return null;
             }
             
-            let priceTime;
-            if (timestamp.includes('Z') || timestamp.includes('+') || timestamp.includes('-')) {
-                priceTime = new Date(timestamp);
-            } else {
-                priceTime = new Date(timestamp + 'Z');
-            }
-            
-            if (Number.isNaN(priceTime.getTime())) {
+            const priceTime = parseTimestampToDate(timestamp);
+            if (!priceTime) {
                 return null;
             }
             
@@ -1198,7 +1227,16 @@ function createScatterPlot(events, marketData) {
                         color: '#ffffff'
                     },
                     ticks: {
-                        color: '#888888'
+                        color: '#888888',
+                        callback: function(value) {
+                            const localDate = new Date(value);
+                            return localDate.toLocaleString(undefined, {
+                                month: 'short',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                        }
                     },
                     grid: {
                         color: 'rgba(255, 255, 255, 0.05)',
@@ -1589,8 +1627,9 @@ function displayEvents(events) {
         eventElement.setAttribute('data-event-index', originalIndex);
         
         // Convert UTC timestamp to local time for display
-        const localTime = new Date(event.timestamp + 'Z').toLocaleString();
-        const utcTime = event.timestamp + ' UTC';
+        const eventDate = parseTimestampToDate(event.timestamp);
+        const localTime = eventDate ? eventDate.toLocaleString() : event.timestamp;
+        const utcTime = eventDate ? eventDate.toISOString().replace('T', ' ').replace('Z', ' UTC') : `${event.timestamp} UTC`;
           // Get color for event type
         const eventColor = eventTypeColors[event.event.toLowerCase()] || '#888888';
         
@@ -2139,18 +2178,27 @@ async function loadAdditionalChunk(chunkIndex) {
             
             // Update loading detail with processing info
             if (loadingDetail) {
-                // Get date range from these events
-                const timestamps = processedEvents.map(e => new Date(e.timestamp + 'Z'));
-                const minDate = new Date(Math.min(...timestamps));
-                const maxDate = new Date(Math.max(...timestamps));
-                loadingDetail.textContent = `Processing ${processedEvents.length} events from ${minDate.toLocaleDateString()}`;
+                const timestamps = processedEvents
+                    .map(e => parseTimestampToDate(e.timestamp))
+                    .filter(date => date)
+                    .map(date => date.getTime());
+                
+                if (timestamps.length > 0) {
+                    const minDate = new Date(Math.min(...timestamps));
+                    const maxDate = new Date(Math.max(...timestamps));
+                    loadingDetail.textContent = `Processing ${processedEvents.length} events from ${minDate.toLocaleDateString()}`;
+                }
             }
             
             // Merge with existing events
             allEventsData = [...allEventsData, ...processedEvents];
             
             // Sort all events by timestamp
-            allEventsData.sort((a, b) => new Date(a.timestamp + 'Z') - new Date(b.timestamp + 'Z'));
+            allEventsData.sort((a, b) => {
+                const dateA = parseTimestampToDate(a.timestamp);
+                const dateB = parseTimestampToDate(b.timestamp);
+                return (dateA ? dateA.getTime() : 0) - (dateB ? dateB.getTime() : 0);
+            });
             
             // Mark chunk as loaded
             loadedChunks.add(chunkKey);
@@ -2193,7 +2241,11 @@ async function loadAdditionalChunk(chunkIndex) {
 
 // Get chunk index by timestamp
 function getChunkIndexForTimestamp(timestamp) {
-    const targetTime = new Date(timestamp);
+    const parsedDate = parseTimestampToDate(timestamp);
+    if (!parsedDate) {
+        return -1;
+    }
+    const targetTime = parsedDate;
     
     // Find which chunk this timestamp would belong to
     for (let i = availableChunks.length - 1; i >= 0; i--) {
