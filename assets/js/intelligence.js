@@ -997,7 +997,7 @@ function createScatterPlot(events, marketData) {
         } else {
             eventTime = new Date(event.timestamp + 'Z');
         }
-          return {
+        return {
             x: eventTime,
             y: price,
             summary: event.summary,
@@ -1017,10 +1017,50 @@ function createScatterPlot(events, marketData) {
         return;
     }
     
-    // Calculate price range for auto-scaling
-    const prices = dataPoints.map(point => point.y);
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
+    // Build the continuous price series for the base chart line
+    const priceSeries = Object.entries(marketData || {})
+        .map(([timestamp, priceData]) => {
+            if (!priceData || typeof priceData.c !== 'number') {
+                return null;
+            }
+            
+            let priceTime;
+            if (timestamp.includes('Z') || timestamp.includes('+') || timestamp.includes('-')) {
+                priceTime = new Date(timestamp);
+            } else {
+                priceTime = new Date(timestamp + 'Z');
+            }
+            
+            if (Number.isNaN(priceTime.getTime())) {
+                return null;
+            }
+            
+            return {
+                x: priceTime,
+                y: priceData.c
+            };
+        })
+        .filter(point => point && typeof point.y === 'number' && !Number.isNaN(point.y))
+        .sort((a, b) => a.x - b.x);
+    
+    if (priceSeries.length === 0) {
+        console.warn('No continuous price data available for line chart rendering');
+    }
+    
+    // Calculate price range for auto-scaling using both the line and the event points
+    const combinedPrices = [
+        ...dataPoints.map(point => point.y),
+        ...priceSeries.map(point => point.y)
+    ].filter(value => typeof value === 'number' && !Number.isNaN(value));
+    
+    if (combinedPrices.length === 0) {
+        console.error('No valid price values available for chart scaling');
+        showError('No price data available for the selected time range');
+        return;
+    }
+    
+    const minPrice = Math.min(...combinedPrices);
+    const maxPrice = Math.max(...combinedPrices);
     const priceRange = maxPrice - minPrice;
     
     // Handle edge case where all prices are the same
@@ -1041,11 +1081,9 @@ function createScatterPlot(events, marketData) {
     console.log(`Chart created with ${dataPoints.length} data points`);
     console.log(`Price range: $${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}`);
     
-    // Create constellation datasets (line connections within chunks)
-    const constellationDatasets = [];
     const chunkGroups = {};
     
-    // Group points by chunk
+    // Group points by chunk for interactive summaries
     dataPoints.forEach(point => {
         if (point.chunkKey) {
             if (!chunkGroups[point.chunkKey]) {
@@ -1055,27 +1093,20 @@ function createScatterPlot(events, marketData) {
         }
     });
     
-    // Create line datasets for each chunk
-    Object.entries(chunkGroups).forEach(([chunkKey, points]) => {
-        if (points.length > 1) {
-            // Sort points by time
-            points.sort((a, b) => a.x - b.x);
-            
-            constellationDatasets.push({
-                label: `Constellation ${chunkKey}`,
-                data: points,
-                borderColor: 'rgba(255, 255, 255, 0.15)', // Thin white lines
-                borderWidth: 1,
-                pointRadius: 0, // Hide points for line datasets
-                pointHoverRadius: 0,
-                showLine: true,
-                fill: false,
-                tension: 0, // Straight lines
-                type: 'line',
-                order: 2 // Draw behind scatter points
-            });
-        }
-    });
+    // Build price line dataset if continuous price data is available
+    const priceLineDataset = priceSeries.length > 0 ? {
+        label: `${TICKER} Price`,
+        data: priceSeries,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        borderWidth: 0.2,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+        tension: 0.5,
+        type: 'line',
+        order: 0,
+        spanGaps: true
+    } : null;
     
     // Group data by event type for scatter datasets
     const eventTypes = ['macro', 'industry', 'price', 'asset'];
@@ -1105,8 +1136,10 @@ function createScatterPlot(events, marketData) {
         };
     }).filter(dataset => dataset.data.length > 0);
     
-    // Combine all datasets (constellations + scatter points)
-    const allDatasets = [...constellationDatasets, ...scatterDatasets];
+    // Combine datasets (price line + scatter points)
+    const allDatasets = priceLineDataset 
+        ? [priceLineDataset, ...scatterDatasets]
+        : [...scatterDatasets];
     
     // Destroy existing chart if it exists
     if (sentimentChart) {
@@ -1222,18 +1255,17 @@ function createScatterPlot(events, marketData) {
                 }
                 
                 if (activeElements.length > 0) {
-                    // Find the actual data point (skip constellation lines)
+                    // Find the actual event data point (skip non-event datasets)
                     let dataPoint = null;
-                    let datasetIndex = -1;
-                    let pointIndex = -1;
                     
                     for (const element of activeElements) {
                         const dataset = sentimentChart.data.datasets[element.datasetIndex];
-                        if (dataset.type !== 'line' || dataset.label?.startsWith('Constellation') === false) {
-                            dataPoint = dataset.data[element.index];
-                            datasetIndex = element.datasetIndex;
-                            pointIndex = element.index;
-                            break;
+                        if (dataset.type === 'scatter') {
+                            const candidatePoint = dataset.data[element.index];
+                            if (candidatePoint && candidatePoint.eventIndex !== undefined) {
+                                dataPoint = candidatePoint;
+                                break;
+                            }
                         }
                     }
                     
@@ -1291,14 +1323,17 @@ function createScatterPlot(events, marketData) {
                 } else {
                     // Normal click behavior
                     if (activeElements.length > 0) {
-                        // Find the actual data point (skip constellation lines)
+                        // Find the actual event data point (skip price line)
                         let dataPoint = null;
                         
                         for (const element of activeElements) {
                             const dataset = sentimentChart.data.datasets[element.datasetIndex];
-                            if (dataset.type !== 'line' || dataset.label?.startsWith('Constellation') === false) {
-                                dataPoint = dataset.data[element.index];
-                                break;
+                            if (dataset.type === 'scatter') {
+                                const candidatePoint = dataset.data[element.index];
+                                if (candidatePoint && candidatePoint.eventIndex !== undefined) {
+                                    dataPoint = candidatePoint;
+                                    break;
+                                }
                             }
                         }
                         
@@ -1383,15 +1418,24 @@ function addMobileTouchHandlers(canvas) {
         
         // Find if we're touching a point
         const canvasPosition = Chart.helpers.getRelativePosition(e, sentimentChart);
-        const datasetIndex = sentimentChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+        const hitElements = sentimentChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
         
-        if (datasetIndex.length > 0) {
-            const firstPoint = datasetIndex[0];
-            const dataset = sentimentChart.data.datasets[firstPoint.datasetIndex];
+        if (hitElements.length > 0) {
+            let matchedPoint = null;
             
-            // Skip constellation lines
-            if (dataset.type !== 'line' || !dataset.label?.startsWith('Constellation')) {
-                touchedPoint = dataset.data[firstPoint.index];
+            for (const element of hitElements) {
+                const dataset = sentimentChart.data.datasets[element.datasetIndex];
+                if (dataset.type === 'scatter') {
+                    const candidatePoint = dataset.data[element.index];
+                    if (candidatePoint && candidatePoint.eventIndex !== undefined) {
+                        matchedPoint = candidatePoint;
+                        break;
+                    }
+                }
+            }
+            
+            if (matchedPoint) {
+                touchedPoint = matchedPoint;
                 
                 // Add visual feedback for long press
                 chartContainer.classList.add('touch-holding');
@@ -1689,6 +1733,9 @@ function highlightChartPoint(eventIndex) {
     
     // Find and highlight the specific point by eventIndex
     sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type !== 'scatter') {
+            return;
+        }
         dataset.data.forEach((point, pointIndex) => {
             if (point.eventIndex === eventIndex) {
                 // Make arrays if they aren't already
@@ -1712,6 +1759,9 @@ function resetChartHighlights() {
     
     // Reset all points to normal size
     sentimentChart.data.datasets.forEach(dataset => {
+        if (dataset.type !== 'scatter') {
+            return;
+        }
         if (Array.isArray(dataset.pointRadius)) {
             dataset.pointRadius.fill(6);
             dataset.pointBorderWidth.fill(1);
