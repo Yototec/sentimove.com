@@ -944,12 +944,14 @@ function getTimeRange(events) {
     
     const start = new Date(Math.min(...timestampValues));
     const end = new Date(Math.max(...timestampValues));
+    const now = new Date();
+    const chartEnd = now > end ? now : end;
     
     return {
         start: start.toISOString(),
-        end: end.toISOString(),
+        end: chartEnd.toISOString(),
         startDate: start,
-        endDate: end
+        endDate: chartEnd
     };
 }
 
@@ -1071,6 +1073,8 @@ function createScatterPlot(events, marketData) {
         })
         .filter(point => point && typeof point.y === 'number' && !Number.isNaN(point.y))
         .sort((a, b) => a.x - b.x);
+    
+    const currentTime = new Date();
     
     if (priceSeries.length === 0) {
         console.warn('No continuous price data available for line chart rendering');
@@ -1221,6 +1225,7 @@ function createScatterPlot(events, marketData) {
                             day: 'MMM dd'
                         }
                     },
+                    suggestedMax: currentTime,
                     title: {
                         display: true,
                         text: 'Time (Local Timezone)',
